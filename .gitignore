@@ -65,4 +65,5 @@ Makefile
 # Data files (user generated)
 data/*.json
 data/*.txt
+data/*.csv
 !data/.gitkeep

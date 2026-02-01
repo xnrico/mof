@@ -1,7 +1,10 @@
+module;
+
+#include <string>
+#include <chrono>
+
 export module budget.entry;
 
-import <string>;
-import <chrono>;
 import budget.category;
 import budget.currency;
 

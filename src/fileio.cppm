@@ -1,11 +1,14 @@
+module;
+
+#include <string>
+#include <fstream>
+#include <sstream>
+#include <vector>
+#include <chrono>
+#include <iomanip>
+
 export module budget.fileio;
 
-import <string>;
-import <fstream>;
-import <sstream>;
-import <vector>;
-import <chrono>;
-import <iomanip>;
 import budget.manager;
 import budget.entry;
 import budget.category;

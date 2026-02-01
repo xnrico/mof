@@ -1,9 +1,11 @@
-export module budget.category;
+module;
 
-import <string>;
-import <string_view>;
-import <vector>;
-import <stdexcept>;
+#include <string>
+#include <string_view>
+#include <vector>
+#include <stdexcept>
+
+export module budget.category;
 
 export namespace budget {
 

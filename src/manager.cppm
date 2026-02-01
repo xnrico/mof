@@ -1,10 +1,13 @@
+module;
+
+#include <string>
+#include <vector>
+#include <memory>
+#include <algorithm>
+#include <stdexcept>
+
 export module budget.manager;
 
-import <string>;
-import <vector>;
-import <memory>;
-import <algorithm>;
-import <stdexcept>;
 import budget.entry;
 import budget.category;
 import budget.currency;

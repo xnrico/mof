@@ -1,8 +1,10 @@
-export module budget.currency;
+module;
 
-import <string>;
-import <string_view>;
-import <stdexcept>;
+#include <string>
+#include <string_view>
+#include <stdexcept>
+
+export module budget.currency;
 
 export namespace budget {
 
