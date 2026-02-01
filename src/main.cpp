@@ -1,7 +1,7 @@
 #include <iostream>
 #include <string>
-#include <iomanip>
 #include <limits>
+#include <print>
 
 #include "manager.hpp"
 #include "category.hpp"
@@ -11,31 +11,31 @@
 using namespace budget;
 
 void displayMenu() {
-    std::cout << "\n===== Ministry of Finance - Budget Tracker =====\n";
-    std::cout << "1. Add Budget Entry\n";
-    std::cout << "2. Modify Budget Entry\n";
-    std::cout << "3. Delete Budget Entry\n";
-    std::cout << "4. View All Entries\n";
-    std::cout << "5. View Entries by Category\n";
-    std::cout << "6. View Category Summary\n";
-    std::cout << "7. Load Budget from File\n";
-    std::cout << "8. Save Budget to File\n";
-    std::cout << "9. Exit\n";
-    std::cout << "===============================================\n";
-    std::cout << "Enter your choice: ";
+    std::print("\n===== Ministry of Finance - Budget Tracker =====\n");
+    std::print("1. Add Budget Entry\n");
+    std::print("2. Modify Budget Entry\n");
+    std::print("3. Delete Budget Entry\n");
+    std::print("4. View All Entries\n");
+    std::print("5. View Entries by Category\n");
+    std::print("6. View Category Summary\n");
+    std::print("7. Load Budget from File\n");
+    std::print("8. Save Budget to File\n");
+    std::print("9. Exit\n");
+    std::print("===============================================\n");
+    std::print("Enter your choice: ");
 }
 
 void displayCategories() {
-    std::cout << "\nAvailable Categories:\n";
+    std::print("\nAvailable Categories:\n");
     auto categories = CategoryManager::getAllCategories();
     for (size_t i = 0; i < categories.size(); ++i) {
-        std::cout << (i + 1) << ". " << CategoryManager::toString(categories[i]) << "\n";
+        std::print("{}. {}\n", i + 1, CategoryManager::toString(categories[i]));
     }
 }
 
 Category selectCategory() {
     displayCategories();
-    std::cout << "Select category (1-" << CategoryManager::getAllCategories().size() << "): ";
+    std::print("Select category (1-{}): ", CategoryManager::getAllCategories().size());
     int choice;
     std::cin >> choice;
     
@@ -47,10 +47,10 @@ Category selectCategory() {
 }
 
 Currency selectCurrency() {
-    std::cout << "\nAvailable Currencies:\n";
-    std::cout << "1. GBP (£)\n";
-    std::cout << "2. USD ($)\n";
-    std::cout << "Select currency (1-2): ";
+    std::print("\nAvailable Currencies:\n");
+    std::print("1. GBP (£)\n");
+    std::print("2. USD ($)\n");
+    std::print("Select currency (1-2): ");
     int choice;
     std::cin >> choice;
     
@@ -62,12 +62,12 @@ Currency selectCurrency() {
 void addEntry(BudgetManager& manager) {
     std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
     
-    std::cout << "\n--- Add Budget Entry ---\n";
-    std::cout << "Enter description: ";
+    std::print("\n--- Add Budget Entry ---\n");
+    std::print("Enter description: ");
     std::string description;
     std::getline(std::cin, description);
     
-    std::cout << "Enter amount: ";
+    std::print("Enter amount: ");
     double amount;
     std::cin >> amount;
     
@@ -75,22 +75,22 @@ void addEntry(BudgetManager& manager) {
     Currency currency = selectCurrency();
     
     std::string id = manager.addEntry(description, amount, category, currency);
-    std::cout << "\n✓ Entry added successfully with ID: " << id << "\n";
+    std::print("\n✓ Entry added successfully with ID: {}\n", id);
 }
 
 void modifyEntry(BudgetManager& manager) {
     std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
     
-    std::cout << "\n--- Modify Budget Entry ---\n";
-    std::cout << "Enter entry ID: ";
+    std::print("\n--- Modify Budget Entry ---\n");
+    std::print("Enter entry ID: ");
     std::string id;
     std::getline(std::cin, id);
     
-    std::cout << "Enter new description: ";
+    std::print("Enter new description: ");
     std::string description;
     std::getline(std::cin, description);
     
-    std::cout << "Enter new amount: ";
+    std::print("Enter new amount: ");
     double amount;
     std::cin >> amount;
     
@@ -98,108 +98,104 @@ void modifyEntry(BudgetManager& manager) {
     Currency currency = selectCurrency();
     
     if (manager.modifyEntry(id, description, amount, category, currency)) {
-        std::cout << "\n✓ Entry modified successfully\n";
+        std::print("\n✓ Entry modified successfully\n");
     } else {
-        std::cout << "\n✗ Entry not found\n";
+        std::print("\n✗ Entry not found\n");
     }
 }
 
 void deleteEntry(BudgetManager& manager) {
     std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
     
-    std::cout << "\n--- Delete Budget Entry ---\n";
-    std::cout << "Enter entry ID: ";
+    std::print("\n--- Delete Budget Entry ---\n");
+    std::print("Enter entry ID: ");
     std::string id;
     std::getline(std::cin, id);
     
     if (manager.deleteEntry(id)) {
-        std::cout << "\n✓ Entry deleted successfully\n";
+        std::print("\n✓ Entry deleted successfully\n");
     } else {
-        std::cout << "\n✗ Entry not found\n";
+        std::print("\n✗ Entry not found\n");
     }
 }
 
 void viewAllEntries(const BudgetManager& manager) {
-    std::cout << "\n--- All Budget Entries ---\n";
+    std::print("\n--- All Budget Entries ---\n");
     
     if (manager.getEntryCount() == 0) {
-        std::cout << "No entries found.\n";
+        std::print("\nNo entries found.\n");
         return;
     }
     
-    std::cout << std::left << std::setw(12) << "ID" 
-              << std::setw(30) << "Description" 
-              << std::setw(10) << "Amount" 
-              << std::setw(15) << "Category"
-              << std::setw(10) << "Currency" << "\n";
-    std::cout << std::string(77, '-') << "\n";
+    std::print("{:<12}{:<30}{:>10}{:<15}{:<10}\n", "ID", "Description", "Amount", "Category", "Currency");
+    std::print("{}\n", std::string(77, '-'));
     
     for (const auto& entry : manager.getEntries()) {
-        std::cout << std::left << std::setw(12) << entry->getId()
-                  << std::setw(30) << entry->getDescription().substr(0, 28)
-                  << std::right << std::setw(10) << std::fixed << std::setprecision(2) << entry->getAmount()
-                  << std::left << std::setw(15) << (" " + CategoryManager::toString(entry->getCategory()))
-                  << std::setw(10) << CurrencyConverter::toString(entry->getCurrency()) << "\n";
+        std::print("{:<12}{:<30}{:>10.2f} {:<14}{:<10}\n",
+                   entry->getId(),
+                   entry->getDescription().substr(0, 28),
+                   entry->getAmount(),
+                   CategoryManager::toString(entry->getCategory()),
+                   CurrencyConverter::toString(entry->getCurrency()));
     }
 }
 
 void viewEntriesByCategory(const BudgetManager& manager) {
-    std::cout << "\n--- View Entries by Category ---\n";
+    std::print("\n--- View Entries by Category ---\n");
     Category category = selectCategory();
     
     auto entries = manager.getEntriesByCategory(category);
     
     if (entries.empty()) {
-        std::cout << "\nNo entries found for " << CategoryManager::toString(category) << ".\n";
+        std::print("\nNo entries found for {}.\n", CategoryManager::toString(category));
         return;
     }
     
-    std::cout << "\n" << CategoryManager::toString(category) << " Entries:\n";
-    std::cout << std::left << std::setw(12) << "ID" 
-              << std::setw(30) << "Description" 
-              << std::setw(10) << "Amount" 
-              << std::setw(10) << "Currency" << "\n";
-    std::cout << std::string(62, '-') << "\n";
+    std::print("\n{} Entries:\n", CategoryManager::toString(category));
+    std::print("{:<12}{:<30}{:>10}{:<10}\n", "ID", "Description", "Amount", "Currency");
+    std::print("{}\n", std::string(62, '-'));
     
     for (const auto* entry : entries) {
-        std::cout << std::left << std::setw(12) << entry->getId()
-                  << std::setw(30) << entry->getDescription().substr(0, 28)
-                  << std::right << std::setw(10) << std::fixed << std::setprecision(2) << entry->getAmount()
-                  << std::left << std::setw(10) << (" " + CurrencyConverter::toString(entry->getCurrency())) << "\n";
+        std::print("{:<12}{:<30}{:>10.2f} {:<9}\n",
+                   entry->getId(),
+                   entry->getDescription().substr(0, 28),
+                   entry->getAmount(),
+                   CurrencyConverter::toString(entry->getCurrency()));
     }
 }
 
 void viewCategorySummary(const BudgetManager& manager) {
-    std::cout << "\n--- Category Summary ---\n";
+    std::print("\n--- Category Summary ---\n");
     Currency currency = selectCurrency();
     
-    std::cout << "\nSummary for " << CurrencyConverter::toString(currency) << ":\n";
-    std::cout << std::left << std::setw(20) << "Category" 
-              << std::right << std::setw(15) << "Total" << "\n";
-    std::cout << std::string(35, '-') << "\n";
+    std::print("\nSummary for {}:\n", CurrencyConverter::toString(currency));
+    std::print("{:<20}{:>15}\n", "Category", "Total");
+    std::print("{}\n", std::string(35, '-'));
     
     double grandTotal = 0.0;
     for (auto category : CategoryManager::getAllCategories()) {
         double total = manager.getTotalByCategory(category, currency);
         if (total > 0.0) {
-            std::cout << std::left << std::setw(20) << CategoryManager::toString(category)
-                      << std::right << std::setw(15) << std::fixed << std::setprecision(2) 
-                      << CurrencyConverter::getSymbol(currency) << total << "\n";
+            std::print("{:<20}{}{:>14.2f}\n",
+                       CategoryManager::toString(category),
+                       CurrencyConverter::getSymbol(currency),
+                       total);
             grandTotal += total;
         }
     }
     
-    std::cout << std::string(35, '-') << "\n";
-    std::cout << std::left << std::setw(20) << "Grand Total"
-              << std::right << std::setw(15) << std::fixed << std::setprecision(2) 
-              << CurrencyConverter::getSymbol(currency) << grandTotal << "\n";
+    std::print("{}\n", std::string(35, '-'));
+    std::print("{:<20}{}{:>14.2f}\n",
+               "Grand Total",
+               CurrencyConverter::getSymbol(currency),
+               grandTotal);
 }
 
 void loadBudget(BudgetManager& manager) {
     std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
     
-    std::cout << "\n--- Load Budget from File ---\n";
-    std::cout << "Enter filename (default: data/budget.csv): ";
+    std::print("\n--- Load Budget from File ---\n");
+    std::print("Enter filename (default: data/budget.csv): ");
     std::string filename;
     std::getline(std::cin, filename);
     
@@ -208,18 +204,18 @@ void loadBudget(BudgetManager& manager) {
     }
     
     if (FileIO::loadBudget(manager, filename)) {
-        std::cout << "\n✓ Budget loaded successfully from " << filename << "\n";
-        std::cout << "Loaded " << manager.getEntryCount() << " entries.\n";
+        std::print("\n✓ Budget loaded successfully from {}\n", filename);
+        std::print("Loaded {} entries.\n", manager.getEntryCount());
     } else {
-        std::cout << "\n✗ Failed to load budget from " << filename << "\n";
+        std::print("\n✗ Failed to load budget from {}\n", filename);
     }
 }
 
 void saveBudget(const BudgetManager& manager) {
     std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
     
-    std::cout << "\n--- Save Budget to File ---\n";
-    std::cout << "Enter filename (default: data/budget.csv): ";
+    std::print("\n--- Save Budget to File ---\n");
+    std::print("Enter filename (default: data/budget.csv): ");
     std::string filename;
     std::getline(std::cin, filename);
     
@@ -228,17 +224,17 @@ void saveBudget(const BudgetManager& manager) {
     }
     
     if (FileIO::saveBudget(manager, filename)) {
-        std::cout << "\n✓ Budget saved successfully to " << filename << "\n";
+        std::print("\n✓ Budget saved successfully to {}\n", filename);
     } else {
-        std::cout << "\n✗ Failed to save budget to " << filename << "\n";
+        std::print("\n✗ Failed to save budget to {}\n", filename);
     }
 }
 
 int main() {
     BudgetManager manager;
     
-    std::cout << "Welcome to Ministry of Finance Budget Tracker!\n";
-    std::cout << "Manage your family budget with ease.\n";
+    std::print("Welcome to Ministry of Finance Budget Tracker!\n");
+    std::print("Manage your family budget with ease.\n");
     
     bool running = true;
     while (running) {
@@ -250,7 +246,7 @@ int main() {
             if (std::cin.fail()) {
                 std::cin.clear();
                 std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-                std::cout << "\n✗ Invalid input. Please enter a number.\n";
+                std::print("\n✗ Invalid input. Please enter a number.\n");
                 continue;
             }
             
@@ -280,14 +276,14 @@ int main() {
                     saveBudget(manager);
                     break;
                 case 9:
-                    std::cout << "\nThank you for using Ministry of Finance Budget Tracker!\n";
+                    std::print("\nThank you for using Ministry of Finance Budget Tracker!\n");
                     running = false;
                     break;
                 default:
-                    std::cout << "\n✗ Invalid choice. Please try again.\n";
+                    std::print("\n✗ Invalid choice. Please try again.\n");
             }
         } catch (const std::exception& e) {
-            std::cout << "\n✗ Error: " << e.what() << "\n";
+            std::print("\n✗ Error: {}\n", e.what());
             std::cin.clear();
             std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
         }
