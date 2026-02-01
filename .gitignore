@@ -47,6 +47,9 @@ cmake-build-*/
 # Test files
 test_budget.csv
 
+# CodeQL
+_codeql_detected_source_root
+
 # CMake files
 CMakeCache.txt
 CMakeFiles/
@@ -70,3 +73,4 @@ data/*.json
 data/*.txt
 data/*.csv
 !data/.gitkeep
+!data/example_budget.csv
