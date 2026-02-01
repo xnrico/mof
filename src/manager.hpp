@@ -1,4 +1,4 @@
-module;
+#pragma once
 
 #include <string>
 #include <vector>
@@ -6,13 +6,11 @@ module;
 #include <algorithm>
 #include <stdexcept>
 
-export module budget.manager;
+#include "entry.hpp"
+#include "category.hpp"
+#include "currency.hpp"
 
-import budget.entry;
-import budget.category;
-import budget.currency;
-
-export namespace budget {
+namespace budget {
 
 class BudgetManager {
 private:

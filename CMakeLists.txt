@@ -16,10 +16,6 @@ set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-# Enable C++23 modules support
-set(CMAKE_CXX_SCAN_FOR_MODULES ON)
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-
 # macOS-specific configuration
 if(APPLE)
     # Auto-detect SDK path if not set (needed for Homebrew LLVM)

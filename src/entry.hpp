@@ -1,14 +1,12 @@
-module;
+#pragma once
 
 #include <string>
 #include <chrono>
 
-export module budget.entry;
+#include "category.hpp"
+#include "currency.hpp"
 
-import budget.category;
-import budget.currency;
-
-export namespace budget {
+namespace budget {
 
 class BudgetEntry {
 private:

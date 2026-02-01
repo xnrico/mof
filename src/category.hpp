@@ -1,13 +1,11 @@
-module;
+#pragma once
 
 #include <string>
 #include <string_view>
 #include <vector>
 #include <stdexcept>
 
-export module budget.category;
-
-export namespace budget {
+namespace budget {
 
 enum class Category {
     FOOD,

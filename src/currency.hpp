@@ -1,12 +1,10 @@
-module;
+#pragma once
 
 #include <string>
 #include <string_view>
 #include <stdexcept>
 
-export module budget.currency;
-
-export namespace budget {
+namespace budget {
 
 enum class Currency {
     GBP,

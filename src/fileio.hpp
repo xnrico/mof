@@ -1,4 +1,4 @@
-module;
+#pragma once
 
 #include <string>
 #include <fstream>
@@ -7,14 +7,12 @@ module;
 #include <chrono>
 #include <iomanip>
 
-export module budget.fileio;
+#include "manager.hpp"
+#include "category.hpp"
+#include "currency.hpp"
+#include "entry.hpp"
 
-import budget.manager;
-import budget.entry;
-import budget.category;
-import budget.currency;
-
-export namespace budget {
+namespace budget {
 
 class FileIO {
 public:

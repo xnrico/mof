@@ -3,10 +3,10 @@
 #include <iomanip>
 #include <limits>
 
-import budget.manager;
-import budget.category;
-import budget.currency;
-import budget.fileio;
+#include "manager.hpp"
+#include "category.hpp"
+#include "currency.hpp"
+#include "fileio.hpp"
 
 using namespace budget;
 

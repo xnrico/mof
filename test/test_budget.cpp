@@ -2,10 +2,10 @@
 #include <cassert>
 #include <string>
 
-import budget.manager;
-import budget.category;
-import budget.currency;
-import budget.fileio;
+#include "../src/manager.hpp"
+#include "../src/category.hpp"
+#include "../src/currency.hpp"
+#include "../src/fileio.hpp"
 
 using namespace budget;
 
