@@ -68,6 +68,9 @@ Makefile
 # macOS
 .DS_Store
 
+# Cache files
+.cache/*
+
 # Data files (user generated)
 data/*.json
 data/*.txt

@@ -1,0 +1,52 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 28,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "macos-llvm",
+      "displayName": "macOS with Homebrew LLVM",
+      "description": "Build with Homebrew LLVM for C++23 modules support",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build",
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "/opt/homebrew/opt/llvm/bin/clang",
+        "CMAKE_CXX_COMPILER": "/opt/homebrew/opt/llvm/bin/clang++",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "CMAKE_OSX_SYSROOT": "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk",
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    },
+    {
+      "name": "macos-llvm-release",
+      "displayName": "macOS with Homebrew LLVM (Release)",
+      "description": "Release build with Homebrew LLVM",
+      "inherits": "macos-llvm",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "macos-llvm",
+      "configurePreset": "macos-llvm"
+    },
+    {
+      "name": "macos-llvm-release",
+      "configurePreset": "macos-llvm-release"
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "macos-llvm",
+      "configurePreset": "macos-llvm",
+      "output": {
+        "outputOnFailure": true
+      }
+    }
+  ]
+}

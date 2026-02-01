@@ -34,9 +34,30 @@ mkdir -p build
 cd build
 
 # Configure and build
-cmake ..
-cmake --build .
+cmake -B build -G Ninja \
+  -DCMAKE_C_COMPILER=/opt/homebrew/opt/llvm/bin/clang \
+  -DCMAKE_CXX_COMPILER=/opt/homebrew/opt/llvm/bin/clang++ \
+  -DCMAKE_OSX_SYSROOT=$(xcrun --show-sdk-path)
+
+cmake --build build
 ```
+
+## Alternatively using the preset file
+```
+# Configure (Debug)
+cmake --preset macos-llvm
+
+# Build
+cmake --build --preset macos-llvm
+
+# Run tests
+ctest --preset macos-llvm
+
+# Or for Release builds:
+cmake --preset macos-llvm-release
+cmake --build --preset macos-llvm-release
+```
+
 
 ### Building with Clang on macOS
 
