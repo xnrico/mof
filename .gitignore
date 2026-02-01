@@ -44,6 +44,9 @@
 build/
 cmake-build-*/
 
+# Test files
+test_budget.csv
+
 # CMake files
 CMakeCache.txt
 CMakeFiles/

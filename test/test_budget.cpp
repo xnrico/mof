@@ -94,8 +94,8 @@ void testFileIO() {
     manager.addEntry("Test entry 1", 100.0, Category::FOOD, Currency::GBP);
     manager.addEntry("Test entry 2", 50.0, Category::TRANSPORT, Currency::USD);
     
-    // Test save
-    std::string testFile = "/tmp/test_budget.csv";
+    // Test save - use relative path that works on all platforms
+    std::string testFile = "test_budget.csv";
     bool saved = FileIO::saveBudget(manager, testFile);
     assert(saved == true);
     std::cout << "  ✓ Save budget test passed\n";
