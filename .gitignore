@@ -77,3 +77,6 @@ data/*.txt
 data/*.csv
 !data/.gitkeep
 !data/example_budget.csv
+
+# Binaries
+bin/*
