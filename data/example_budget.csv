@@ -1,6 +1,0 @@
-ID,Description,Amount,Category,Currency,Timestamp
-ENTRY1,Weekly groceries,85.50,Food,GBP,2024-01-15 09:30:00
-ENTRY2,Monthly rent,1200.00,Housing,GBP,2024-01-01 10:00:00
-ENTRY3,Bus pass,55.00,Transport,GBP,2024-01-05 14:20:00
-ENTRY4,Electricity bill,78.50,Utilities,GBP,2024-01-10 11:15:00
-ENTRY5,Netflix subscription,10.99,Entertainment,GBP,2024-01-01 00:00:00

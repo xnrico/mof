@@ -64,6 +64,7 @@ Makefile
 *.swp
 *.swo
 *~
+.clang-format
 
 # macOS
 .DS_Store
