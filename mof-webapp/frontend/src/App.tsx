@@ -1,13 +1,46 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import Dashboard from './pages/Dashboard';
-import Accounts from './pages/Accounts';
-import Transactions from './pages/Transactions';
-import Settings from './pages/Settings';
 import { DollarSign, CreditCard, List, Settings as SettingsIcon } from 'lucide-react';
 
 const queryClient = new QueryClient();
+
+// Placeholder components until you build the actual pages
+function Dashboard() {
+  return (
+    <div className="px-4 py-6">
+      <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
+      <p className="mt-4">Welcome to Ministry of Finance</p>
+    </div>
+  );
+}
+
+function Accounts() {
+  return (
+    <div className="px-4 py-6">
+      <h1 className="text-3xl font-bold text-gray-900">Accounts</h1>
+      <p className="mt-4">Manage your accounts here</p>
+    </div>
+  );
+}
+
+function Transactions() {
+  return (
+    <div className="px-4 py-6">
+      <h1 className="text-3xl font-bold text-gray-900">Transactions</h1>
+      <p className="mt-4">View your transactions here</p>
+    </div>
+  );
+}
+
+function Settings() {
+  return (
+    <div className="px-4 py-6">
+      <h1 className="text-3xl font-bold text-gray-900">Settings</h1>
+      <p className="mt-4">Configure your settings here</p>
+    </div>
+  );
+}
 
 function App() {
   return (
