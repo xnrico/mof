@@ -11,8 +11,9 @@ from models.database import Base
 from models.models import User, Account, IncomeSource, Currency, AccountType, IntegrationProvider
 
 
-# Database URL - update if needed
-DATABASE_URL = "postgresql+asyncpg://mof:mof@localhost:5432/mof"
+# Database URL - use postgres hostname when running in Docker
+import os
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+asyncpg://mof:mof@postgres:5432/mof")
 
 
 async def init_database():
