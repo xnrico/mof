@@ -14,7 +14,7 @@ psycopg2-binary==2.9.9
 plaid-python==28.0.0
 gocardless-pro==1.49.0
 ib-insync==0.9.86
-trading212==0.2.1
+trading212==0.1.6
 
 # Task Scheduling
 apscheduler==3.10.4

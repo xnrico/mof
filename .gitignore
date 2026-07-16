@@ -41,22 +41,22 @@
 *.dwo
 
 # Build directories
-build/
-cmake-build-*/
+mof-og/build/
+mof-og/cmake-build-*/
 
 # Test files
-test_budget.csv
+mof-og/test_budget.csv
 
 # CodeQL
 _codeql_detected_source_root
 
 # CMake files
-CMakeCache.txt
-CMakeFiles/
-cmake_install.cmake
-Makefile
-*.cmake
-!CMakeLists.txt
+mof-og/CMakeCache.txt
+mof-og/CMakeFiles/
+mof-og/cmake_install.cmake
+mof-og/Makefile
+mof-og/*.cmake
+!mof-og/CMakeLists.txt
 
 # IDE files
 .vscode/
@@ -73,11 +73,11 @@ Makefile
 .cache/*
 
 # Data files (user generated)
-data/*.json
-data/*.txt
-data/*.csv
-!data/.gitkeep
-!data/example_budget.csv
+mof-og/data/*.json
+mof-og/data/*.txt
+mof-og/data/*.csv
+!mof-og/data/.gitkeep
+!mof-og/data/example_budget.csv
 
 # Binaries
-bin/*
+mof-og/bin/*
