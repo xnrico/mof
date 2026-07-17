@@ -21,15 +21,24 @@ class Trading212Integration(BaseIntegration):
 
     async def initialize(self) -> bool:
         """Initialize Trading 212 client"""
+        if not self.api_key:
+            print("Trading 212: no API key configured")
+            return False
         try:
-            async with httpx.AsyncClient() as client:
+            async with httpx.AsyncClient(timeout=10) as client:
                 response = await client.get(
                     f"{self.base_url}/equity/account/info",
                     headers={"Authorization": self.api_key}
                 )
-                return response.status_code == 200
+                if response.status_code != 200:
+                    print(
+                        f"Trading 212 initialize failed: HTTP {response.status_code} "
+                        f"env={self.env} body={response.text[:200]}"
+                    )
+                    return False
+                return True
         except Exception as e:
-            print(f"Failed to initialize Trading 212: {e}")
+            print(f"Trading 212 initialize exception: {e}")
             return False
 
     async def get_accounts(self) -> List[AccountData]:
