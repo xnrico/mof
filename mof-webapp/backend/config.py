@@ -3,7 +3,11 @@ from typing import Optional
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",   # silently drop unknown env vars (e.g. renamed fields)
+    )
 
     # Database
     DATABASE_URL: str = "postgresql+asyncpg://mof:mof@localhost:5432/mof"
