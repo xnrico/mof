@@ -15,12 +15,12 @@ const client = axios.create({
 export const api = {
   // Users
   getUsers: async () => {
-    const response = await client.get('/users');
+    const response = await client.get('/users/');
     return response.data;
   },
 
   createUser: async (data: { name: string; email?: string }) => {
-    const response = await client.post('/users', data);
+    const response = await client.post('/users/', data);
     return response.data;
   },
 
@@ -30,24 +30,24 @@ export const api = {
   },
 
   addIncomeSource: async (userId: number, data: any) => {
-    const response = await client.post(`/users/${userId}/income`, data);
+    const response = await client.post(`/users/${userId}/income/`, data);
     return response.data;
   },
 
   getIncomeSources: async (userId: number) => {
-    const response = await client.get(`/users/${userId}/income`);
+    const response = await client.get(`/users/${userId}/income/`);
     return response.data;
   },
 
   // Accounts
   getAccounts: async (userId?: number) => {
     const params = userId ? { user_id: userId } : {};
-    const response = await client.get('/accounts', { params });
+    const response = await client.get('/accounts/', { params });
     return response.data;
   },
 
   createAccount: async (data: any) => {
-    const response = await client.post('/accounts', data);
+    const response = await client.post('/accounts/', data);
     return response.data;
   },
 
@@ -75,7 +75,7 @@ export const api = {
     limit?: number;
     offset?: number;
   }) => {
-    const response = await client.get('/transactions', { params });
+    const response = await client.get('/transactions/', { params });
     return response.data;
   },
 

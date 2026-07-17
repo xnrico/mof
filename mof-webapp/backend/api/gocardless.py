@@ -40,9 +40,7 @@ async def list_institutions(
     """List available banks for a given country."""
     client = GoCardlessClient(db)
     institutions = await client.list_institutions(country)
-    if not institutions:
-        raise HTTPException(502, "Could not fetch institutions — check GoCardless credentials")
-    # Return only the fields the frontend needs
+    # Return empty list (not 502) when credentials aren't configured yet
     return [
         {
             "id": i.get("id"),
