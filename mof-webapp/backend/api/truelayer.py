@@ -42,7 +42,7 @@ async def get_link_url(account_id: int, redirect_base_url: str, db: AsyncSession
 
     redirect_uri = f"{redirect_base_url.rstrip('/')}/truelayer/callback?account_id={account_id}"
     client = TrueLayerClient(db)
-    url = await client.build_auth_url(redirect_uri=redirect_uri, account_id=account_id)
+    url = await client.build_connection_auth_url(redirect_uri=redirect_uri, account_id=account_id)
     if not url:
         raise HTTPException(502, "Could not build TrueLayer auth URL — check Client ID in Settings")
     return {"auth_url": url, "redirect_uri": redirect_uri}
