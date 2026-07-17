@@ -147,22 +147,27 @@ class TrueLayerClient:
         client_id = await self._client_id()
         client_secret = await self._client_secret()
         if not client_id or not client_secret:
+            print(f"TrueLayer exchange: missing credentials (id={bool(client_id)} secret={bool(client_secret)})")
             return None
         sandbox = await self._is_sandbox()
+        endpoint = f"{self._auth_base(sandbox)}/connect/token"
+        payload = {
+            "grant_type": "authorization_code",
+            "client_id": client_id,
+            "client_secret": client_secret,
+            "redirect_uri": redirect_uri,
+            "code": code,
+        }
+        print(f"TrueLayer exchange → {endpoint}")
+        print(f"  client_id={client_id!r}")
+        print(f"  client_secret={client_secret[:12]}... (len={len(client_secret)})")
+        print(f"  redirect_uri={redirect_uri!r}")
+        print(f"  code={code[:16]}...")
         try:
             async with httpx.AsyncClient(timeout=15) as http:
-                r = await http.post(
-                    f"{self._auth_base(sandbox)}/connect/token",
-                    data={
-                        "grant_type": "authorization_code",
-                        "client_id": client_id,
-                        "client_secret": client_secret,
-                        "redirect_uri": redirect_uri,
-                        "code": code,
-                    },
-                )
+                r = await http.post(endpoint, data=payload)
+                print(f"  response: {r.status_code} {r.text[:300]}")
                 if r.status_code != 200:
-                    print(f"TrueLayer code exchange failed: {r.status_code} {r.text[:300]}")
                     return None
                 return r.json()
         except Exception as e:
