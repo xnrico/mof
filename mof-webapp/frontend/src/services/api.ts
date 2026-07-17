@@ -129,6 +129,27 @@ export const api = {
     const response = await client.put('/settings/providers', { values });
     return response.data;
   },
+
+  // GoCardless bank linking
+  getInstitutions: async (country = 'GB') => {
+    const response = await client.get('/gocardless/institutions', { params: { country } });
+    return response.data;
+  },
+
+  createGCLink: async (data: { account_id: number; institution_id: string; redirect_base_url: string }) => {
+    const response = await client.post('/gocardless/link', data);
+    return response.data;
+  },
+
+  getGCRequisition: async (accountId: number) => {
+    const response = await client.get('/gocardless/requisition', { params: { account_id: accountId } });
+    return response.data;
+  },
+
+  setGCAccount: async (data: { mof_account_id: number; gc_account_id: string; requisition_id: string }) => {
+    const response = await client.post('/gocardless/set-account', data);
+    return response.data;
+  },
 };
 
 export default api;

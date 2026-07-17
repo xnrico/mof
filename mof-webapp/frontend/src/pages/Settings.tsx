@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Save, CheckCircle, AlertCircle } from 'lucide-react';
+import { Save, CheckCircle, AlertCircle, ExternalLink, Loader } from 'lucide-react';
 import { api, Account, ProviderSettings } from '../services/api';
 
 // ---- Provider Keys Section ----
@@ -216,6 +216,161 @@ function AccountIntegrationSection() {
   );
 }
 
+// ---- GoCardless Bank Linking Section ----
+
+interface Institution { id: string; name: string; logo: string | null; }
+
+function GoCardlessLinkSection() {
+  const [mofAccountId, setMofAccountId] = useState<number | ''>('');
+  const [country, setCountry] = useState('GB');
+  const [search, setSearch] = useState('');
+  const [selectedInstitution, setSelectedInstitution] = useState<Institution | null>(null);
+  const [redirecting, setRedirecting] = useState(false);
+
+  const { data: accounts } = useQuery<Account[]>({
+    queryKey: ['accounts', 'all'],
+    queryFn: () => api.getAccounts(),
+  });
+
+  const gcAccounts = (accounts ?? []).filter((a) => a.provider === 'GoCardless');
+
+  const { data: institutions, isLoading: loadingBanks, error: bankError } = useQuery<Institution[]>({
+    queryKey: ['institutions', country],
+    queryFn: () => api.getInstitutions(country),
+    enabled: true,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const filtered = (institutions ?? []).filter((i) =>
+    i.name.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const linkMutation = useMutation({
+    mutationFn: () =>
+      api.createGCLink({
+        account_id: mofAccountId as number,
+        institution_id: selectedInstitution!.id,
+        redirect_base_url: `${window.location.protocol}//${window.location.hostname}:${window.location.port || (window.location.protocol === 'https:' ? '443' : '80')}`,
+      }),
+    onSuccess: (data) => {
+      setRedirecting(true);
+      window.location.href = data.auth_url;
+    },
+  });
+
+  return (
+    <div className="bg-white rounded-lg shadow-sm p-6 space-y-4">
+      {/* Step 1: Select MoF account */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          1. Which account are you linking?
+        </label>
+        <select
+          value={mofAccountId}
+          onChange={(e) => { setMofAccountId(e.target.value === '' ? '' : Number(e.target.value)); setSelectedInstitution(null); }}
+          className="w-full px-3 py-2 rounded-md border border-gray-300 text-sm bg-white"
+        >
+          <option value="">Select a GoCardless account…</option>
+          {gcAccounts.map((a) => (
+            <option key={a.id} value={a.id}>{a.name} ({a.currency})</option>
+          ))}
+        </select>
+        {gcAccounts.length === 0 && (
+          <p className="text-xs text-amber-600 mt-1">No GoCardless accounts found. Create one via the API or seed script first.</p>
+        )}
+      </div>
+
+      {mofAccountId !== '' && (
+        <>
+          {/* Step 2: Country */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">2. Country</label>
+            <select
+              value={country}
+              onChange={(e) => { setCountry(e.target.value); setSelectedInstitution(null); setSearch(''); }}
+              className="w-full px-3 py-2 rounded-md border border-gray-300 text-sm bg-white"
+            >
+              {['GB','DE','FR','ES','IT','NL','BE','SE','NO','DK','FI','PL','AT','IE','PT'].map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Step 3: Bank picker */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">3. Select your bank</label>
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search banks…"
+              className="w-full px-3 py-2 rounded-md border border-gray-300 text-sm mb-2"
+            />
+            {loadingBanks && (
+              <div className="flex items-center gap-2 text-gray-500 text-sm py-4 justify-center">
+                <Loader className="h-4 w-4 animate-spin" /> Loading banks…
+              </div>
+            )}
+            {bankError && (
+              <p className="text-sm text-red-600">
+                <AlertCircle className="inline h-4 w-4 mr-1" />
+                Could not load banks — check GoCardless Secret ID/Key in Provider API Keys above.
+              </p>
+            )}
+            <div className="max-h-56 overflow-y-auto border border-gray-200 rounded-md divide-y divide-gray-100">
+              {filtered.slice(0, 50).map((inst) => (
+                <button
+                  key={inst.id}
+                  onClick={() => setSelectedInstitution(inst)}
+                  className={`w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-blue-50 ${selectedInstitution?.id === inst.id ? 'bg-blue-50 border-l-4 border-blue-500' : ''}`}
+                >
+                  {inst.logo
+                    ? <img src={inst.logo} alt="" className="h-6 w-6 object-contain flex-shrink-0" />
+                    : <div className="h-6 w-6 bg-gray-200 rounded flex-shrink-0" />
+                  }
+                  <span className="text-sm text-gray-900">{inst.name}</span>
+                  {selectedInstitution?.id === inst.id && (
+                    <CheckCircle className="h-4 w-4 text-blue-600 ml-auto flex-shrink-0" />
+                  )}
+                </button>
+              ))}
+              {!loadingBanks && filtered.length === 0 && (
+                <p className="text-sm text-gray-500 p-3">No banks found for "{search}"</p>
+              )}
+            </div>
+          </div>
+
+          {/* Step 4: Connect */}
+          {selectedInstitution && (
+            <div className="bg-blue-50 rounded-md p-4 space-y-3">
+              <p className="text-sm text-gray-700">
+                You'll be redirected to <strong>{selectedInstitution.name}</strong> to authorise
+                read-only access. After completing the bank's auth flow you'll be brought back here
+                to confirm the account.
+              </p>
+              <button
+                onClick={() => linkMutation.mutate()}
+                disabled={linkMutation.isPending || redirecting}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 disabled:opacity-50"
+              >
+                {redirecting || linkMutation.isPending
+                  ? <><Loader className="h-4 w-4 animate-spin" /> Redirecting…</>
+                  : <><ExternalLink className="h-4 w-4" /> Connect to {selectedInstitution.name}</>
+                }
+              </button>
+              {linkMutation.isError && (
+                <p className="text-sm text-red-600">
+                  {linkMutation.error instanceof Error ? linkMutation.error.message : 'Failed to create link'}
+                </p>
+              )}
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 // ---- Page ----
 
 export default function Settings() {
@@ -235,6 +390,15 @@ export default function Settings() {
       <section className="space-y-3">
         <h2 className="text-xl font-semibold text-gray-800">Account Linking</h2>
         <AccountIntegrationSection />
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="text-xl font-semibold text-gray-800">Link GoCardless Bank Account</h2>
+        <p className="text-sm text-gray-500">
+          Connect a UK/EU bank account via GoCardless Open Banking. You'll be redirected
+          to your bank to authorise access, then brought back here to confirm.
+        </p>
+        <GoCardlessLinkSection />
       </section>
     </div>
   );

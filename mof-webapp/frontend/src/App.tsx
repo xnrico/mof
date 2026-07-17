@@ -5,6 +5,7 @@ import Dashboard from './pages/Dashboard';
 import Accounts from './pages/Accounts';
 import Transactions from './pages/Transactions';
 import Settings from './pages/Settings';
+import GoCardlessCallback from './pages/GoCardlessCallback';
 
 const queryClient = new QueryClient();
 
@@ -62,6 +63,7 @@ function App() {
               <Route path="/accounts" element={<Accounts />} />
               <Route path="/transactions" element={<Transactions />} />
               <Route path="/settings" element={<Settings />} />
+              <Route path="/gocardless/callback" element={<GoCardlessCallback />} />
             </Routes>
           </main>
         </div>

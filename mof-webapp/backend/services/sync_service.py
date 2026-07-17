@@ -176,10 +176,9 @@ class SyncService:
             credentials["item_id"] = config.item_id
 
         elif provider == IntegrationProvider.GOCARDLESS:
-            credentials["env"] = await provider_settings.get_effective(
-                self.db, "GOCARDLESS_ENV", settings.GOCARDLESS_ENV
-            )
-            credentials["requisition_id"] = config.item_id
+            from services.gocardless_client import GoCardlessClient
+            credentials["gc_account_id"] = integration_config.access_token
+            credentials["_client"] = GoCardlessClient(self.db)
 
         elif provider == IntegrationProvider.IBKR:
             credentials["host"] = await provider_settings.get_effective(

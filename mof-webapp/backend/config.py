@@ -18,9 +18,10 @@ class Settings(BaseSettings):
     PLAID_SECRET: Optional[str] = None
     PLAID_ENV: str = "sandbox"
 
-    # GoCardless
-    GOCARDLESS_ACCESS_TOKEN: Optional[str] = None
-    GOCARDLESS_ENV: str = "sandbox"
+    # GoCardless (Nordigen Bank Account Data)
+    GOCARDLESS_SECRET_ID: Optional[str] = None
+    GOCARDLESS_SECRET_KEY: Optional[str] = None
+    GOCARDLESS_ENV: str = "sandbox"  # "sandbox" or "live"
 
     # Interactive Brokers
     IBKR_ACCOUNT_ID: Optional[str] = None

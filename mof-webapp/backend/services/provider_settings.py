@@ -19,8 +19,9 @@ PROVIDER_FIELDS = {
         {"key": "PLAID_ENV", "label": "Environment", "secret": False},
     ],
     "GoCardless": [
-        {"key": "GOCARDLESS_ACCESS_TOKEN", "label": "Access Token", "secret": True},
-        {"key": "GOCARDLESS_ENV", "label": "Environment", "secret": False},
+        {"key": "GOCARDLESS_SECRET_ID", "label": "Secret ID", "secret": False},
+        {"key": "GOCARDLESS_SECRET_KEY", "label": "Secret Key", "secret": True},
+        {"key": "GOCARDLESS_ENV", "label": "Environment (sandbox / live)", "secret": False},
     ],
     "Trading212": [
         {"key": "TRADING212_API_KEY", "label": "API Key (Public)", "secret": False},

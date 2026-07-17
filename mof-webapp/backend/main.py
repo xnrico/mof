@@ -7,7 +7,7 @@ from apscheduler.triggers.cron import CronTrigger
 
 from config import settings
 from models.database import init_db, get_db
-from api import accounts, transactions, users, sync, settings as settings_api
+from api import accounts, transactions, users, sync, settings as settings_api, gocardless
 
 
 # Initialize scheduler
@@ -61,6 +61,7 @@ app.include_router(accounts.router, prefix="/api/accounts", tags=["accounts"])
 app.include_router(transactions.router, prefix="/api/transactions", tags=["transactions"])
 app.include_router(sync.router, prefix="/api/sync", tags=["sync"])
 app.include_router(settings_api.router, prefix="/api/settings", tags=["settings"])
+app.include_router(gocardless.router, prefix="/api/gocardless", tags=["gocardless"])
 
 
 @app.get("/")
