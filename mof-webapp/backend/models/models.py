@@ -119,6 +119,21 @@ class Transaction(Base):
     account: Mapped["Account"] = relationship(back_populates="transactions")
 
 
+class ProviderKeyPair(Base):
+    """Named credential set for a provider (supports multiple pairs per provider)."""
+    __tablename__ = "provider_key_pairs"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    provider: Mapped[IntegrationProvider] = mapped_column(SQLEnum(IntegrationProvider))
+    name: Mapped[str] = mapped_column(String(100))  # e.g. "T212 Live", "TrueLayer Sandbox"
+    credentials: Mapped[Optional[str]] = mapped_column(Text)  # JSON
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    # Relationships
+    integration_configs: Mapped[List["IntegrationConfig"]] = relationship(back_populates="key_pair")
+
+
 class IntegrationConfig(Base):
     __tablename__ = "integration_configs"
 
@@ -126,6 +141,9 @@ class IntegrationConfig(Base):
     account_id: Mapped[int] = mapped_column(ForeignKey("accounts.id"), unique=True)
 
     provider: Mapped[IntegrationProvider] = mapped_column(SQLEnum(IntegrationProvider))
+
+    # Link to named credential set (optional — falls back to app_settings)
+    key_pair_id: Mapped[Optional[int]] = mapped_column(ForeignKey("provider_key_pairs.id"), nullable=True)
 
     # Encrypted credentials/tokens (store encrypted in production)
     access_token: Mapped[Optional[str]] = mapped_column(Text)
@@ -146,6 +164,7 @@ class IntegrationConfig(Base):
 
     # Relationships
     account: Mapped["Account"] = relationship(back_populates="integration_config")
+    key_pair: Mapped[Optional["ProviderKeyPair"]] = relationship(back_populates="integration_configs")
 
 
 class IncomeSource(Base):

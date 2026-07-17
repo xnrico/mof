@@ -5,6 +5,7 @@ import Dashboard from './pages/Dashboard';
 import Accounts from './pages/Accounts';
 import Transactions from './pages/Transactions';
 import Settings from './pages/Settings';
+import Manage from './pages/Manage';
 import GoCardlessCallback from './pages/GoCardlessCallback';
 import TrueLayerCallback from './pages/TrueLayerCallback';
 
@@ -14,6 +15,7 @@ const navItems = [
   { to: '/', label: 'Dashboard', icon: DollarSign, end: true },
   { to: '/accounts', label: 'Accounts', icon: CreditCard, end: false },
   { to: '/transactions', label: 'Transactions', icon: List, end: false },
+  { to: '/manage', label: 'Manage', icon: SettingsIcon, end: false },
   { to: '/settings', label: 'Settings', icon: SettingsIcon, end: false },
 ];
 
@@ -66,6 +68,7 @@ function App() {
               <Route path="/settings" element={<Settings />} />
               <Route path="/gocardless/callback" element={<GoCardlessCallback />} />
               <Route path="/truelayer/callback" element={<TrueLayerCallback />} />
+              <Route path="/manage" element={<Manage />} />
             </Routes>
           </main>
         </div>

@@ -155,41 +155,43 @@ class SyncService:
     async def _build_credentials(self, provider: IntegrationProvider, config: IntegrationConfig) -> dict:
         """Build credentials dictionary for integration.
 
-        App-level provider keys come from the effective settings (DB override
-        with .env fallback); per-account tokens come from the IntegrationConfig.
+        If the IntegrationConfig has a key_pair_id, load credentials from that
+        ProviderKeyPair. Otherwise fall back to app_settings / .env.
         """
         credentials = {
             "access_token": config.access_token,
             "refresh_token": config.refresh_token,
         }
 
+        # Load key pair credentials if configured
+        kp_creds: dict = {}
+        if config.key_pair_id:
+            from models.models import ProviderKeyPair
+            kp = await self.db.get(ProviderKeyPair, config.key_pair_id)
+            if kp and kp.credentials:
+                kp_creds = json.loads(kp.credentials)
+
+        async def _get(key: str, fallback=None):
+            """Key-pair first, then app_settings fallback."""
+            if key in kp_creds and kp_creds[key]:
+                return kp_creds[key]
+            return await provider_settings.get_effective(self.db, key, fallback)
+
         if provider == IntegrationProvider.PLAID:
-            credentials["client_id"] = await provider_settings.get_effective(
-                self.db, "PLAID_CLIENT_ID", settings.PLAID_CLIENT_ID
-            )
-            credentials["secret"] = await provider_settings.get_effective(
-                self.db, "PLAID_SECRET", settings.PLAID_SECRET
-            )
-            credentials["env"] = await provider_settings.get_effective(
-                self.db, "PLAID_ENV", settings.PLAID_ENV
-            )
-            credentials["item_id"] = config.item_id
+            credentials["client_id"] = await _get("PLAID_CLIENT_ID", settings.PLAID_CLIENT_ID)
+            credentials["secret"]    = await _get("PLAID_SECRET",    settings.PLAID_SECRET)
+            credentials["env"]       = await _get("PLAID_ENV",       settings.PLAID_ENV)
+            credentials["item_id"]   = config.item_id
 
         elif provider == IntegrationProvider.GOCARDLESS:
             from services.gocardless_client import GoCardlessClient
-            credentials["gc_account_id"] = integration_config.access_token
+            credentials["gc_account_id"] = config.access_token
             credentials["_client"] = GoCardlessClient(self.db)
 
         elif provider == IntegrationProvider.IBKR:
-            credentials["host"] = await provider_settings.get_effective(
-                self.db, "IBKR_HOST", settings.IBKR_HOST
-            )
-            credentials["port"] = await provider_settings.get_effective(
-                self.db, "IBKR_PORT", str(settings.IBKR_PORT)
-            )
-            credentials["account_id"] = await provider_settings.get_effective(
-                self.db, "IBKR_ACCOUNT_ID", settings.IBKR_ACCOUNT_ID
-            )
+            credentials["host"]       = await _get("IBKR_HOST",       settings.IBKR_HOST)
+            credentials["port"]       = await _get("IBKR_PORT",       str(settings.IBKR_PORT))
+            credentials["account_id"] = await _get("IBKR_ACCOUNT_ID", settings.IBKR_ACCOUNT_ID)
             if config.config_data:
                 extra = json.loads(config.config_data)
                 credentials.update(extra)
@@ -198,30 +200,21 @@ class SyncService:
             from services.truelayer_client import TrueLayerClient
             import json as _json
             config_data = _json.loads(config.config_data or "{}") if config.config_data else {}
-            credentials["access_token"] = config.access_token
-            credentials["refresh_token"] = config.refresh_token
             credentials["tl_account_id"] = config.item_id
-            credentials["token_expiry"] = config_data.get("token_expiry")
+            credentials["token_expiry"]  = config_data.get("token_expiry")
+            # TrueLayerClient reads TRUELAYER_* from DB; key-pair overrides
+            # are injected by storing them in app_settings via the key-pair flow.
             credentials["_client"] = TrueLayerClient(self.db)
+            credentials["_kp_creds"] = kp_creds  # pass through for client to use
 
         elif provider == IntegrationProvider.TRADING212:
-            # api_key/api_secret come from provider-level app_settings.
-            # Fall back to IntegrationConfig.access_token for backward compat
-            # (older setup stored the key there directly).
-            api_key = await provider_settings.get_effective(
-                self.db, "TRADING212_API_KEY", None
-            )
-            api_secret = await provider_settings.get_effective(
-                self.db, "TRADING212_API_SECRET", None
-            )
-            # Legacy fallback: key was stored as access_token in IntegrationConfig
+            api_key    = kp_creds.get("api_key") or await provider_settings.get_effective(self.db, "TRADING212_API_KEY", None)
+            api_secret = kp_creds.get("api_secret") or await provider_settings.get_effective(self.db, "TRADING212_API_SECRET", None)
             if not api_key and config.access_token:
                 api_key = config.access_token
-            credentials["api_key"] = api_key
+            credentials["api_key"]    = api_key
             credentials["api_secret"] = api_secret
-            credentials["env"] = await provider_settings.get_effective(
-                self.db, "TRADING212_ENV", settings.TRADING212_ENV
-            )
+            credentials["env"]        = kp_creds.get("env") or await provider_settings.get_effective(self.db, "TRADING212_ENV", settings.TRADING212_ENV)
 
         return credentials
 

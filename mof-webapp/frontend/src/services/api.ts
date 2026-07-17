@@ -171,6 +171,37 @@ export const api = {
     const response = await client.post('/truelayer/set-account', data);
     return response.data;
   },
+
+  // Account management
+  updateAccount: async (accountId: number, data: {
+    name?: string; account_type?: string; currency?: string;
+    provider?: string; is_active?: boolean;
+  }) => {
+    const response = await client.put(`/accounts/${accountId}`, data);
+    return response.data;
+  },
+
+  // Provider key pairs
+  listKeyPairs: async (provider?: string) => {
+    const response = await client.get('/key-pairs/', { params: provider ? { provider } : {} });
+    return response.data;
+  },
+  createKeyPair: async (data: { provider: string; name: string; credentials: Record<string, string> }) => {
+    const response = await client.post('/key-pairs/', data);
+    return response.data;
+  },
+  updateKeyPair: async (id: number, data: { name?: string; credentials?: Record<string, string>; is_active?: boolean }) => {
+    const response = await client.put(`/key-pairs/${id}`, data);
+    return response.data;
+  },
+  deleteKeyPair: async (id: number) => {
+    const response = await client.delete(`/key-pairs/${id}`);
+    return response.data;
+  },
+  getKeyPairProviders: async () => {
+    const response = await client.get('/key-pairs/providers');
+    return response.data;
+  },
 };
 
 export default api;
@@ -244,6 +275,27 @@ export interface ProviderField {
 export interface ProviderSettings {
   provider: string;
   fields: ProviderField[];
+}
+
+export interface KeyPairFieldMask {
+  value: string | null;
+  is_set: boolean;
+  is_secret: boolean;
+}
+
+export interface KeyPair {
+  id: number;
+  provider: string;
+  name: string;
+  credentials_masked: Record<string, KeyPairFieldMask>;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface ProviderFieldDef {
+  key: string;
+  label: string;
+  secret: boolean;
 }
 
 const CURRENCY_SYMBOLS: Record<string, string> = { GBP: '£', USD: '$' };

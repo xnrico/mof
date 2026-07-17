@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from typing import List
+from typing import List, Optional
 from pydantic import BaseModel
 from datetime import datetime
 
@@ -21,6 +21,7 @@ class AccountCreate(BaseModel):
 
 class IntegrationConfigCreate(BaseModel):
     provider: str
+    key_pair_id: int | None = None
     access_token: str | None = None
     refresh_token: str | None = None
     item_id: str | None = None
@@ -97,17 +98,22 @@ async def configure_integration(
     existing_config = result.scalar_one_or_none()
 
     if existing_config:
-        # Update existing
-        existing_config.access_token = config.access_token
-        existing_config.refresh_token = config.refresh_token
-        existing_config.item_id = config.item_id
-        existing_config.config_data = config.config_data
+        if config.key_pair_id is not None:
+            existing_config.key_pair_id = config.key_pair_id
+        if config.access_token is not None:
+            existing_config.access_token = config.access_token
+        if config.refresh_token is not None:
+            existing_config.refresh_token = config.refresh_token
+        if config.item_id is not None:
+            existing_config.item_id = config.item_id
+        if config.config_data is not None:
+            existing_config.config_data = config.config_data
         existing_config.updated_at = datetime.utcnow()
     else:
-        # Create new
         db_config = IntegrationConfig(
             account_id=account_id,
             provider=IntegrationProvider(config.provider),
+            key_pair_id=config.key_pair_id,
             access_token=config.access_token,
             refresh_token=config.refresh_token,
             item_id=config.item_id,
@@ -117,6 +123,37 @@ async def configure_integration(
 
     await db.commit()
     return {"message": "Integration configured successfully"}
+
+
+class AccountUpdate(BaseModel):
+    name: Optional[str] = None
+    account_type: Optional[str] = None
+    currency: Optional[str] = None
+    provider: Optional[str] = None
+    is_active: Optional[bool] = None
+
+
+@router.put("/{account_id}", response_model=AccountResponse)
+async def update_account(account_id: int, update: AccountUpdate, db: AsyncSession = Depends(get_db)):
+    """Update account fields"""
+    account = await db.get(Account, account_id)
+    if not account:
+        raise HTTPException(status_code=404, detail="Account not found")
+
+    if update.name is not None:
+        account.name = update.name
+    if update.account_type is not None:
+        account.account_type = AccountType(update.account_type)
+    if update.currency is not None:
+        account.currency = Currency(update.currency)
+    if update.provider is not None:
+        account.provider = IntegrationProvider(update.provider)
+    if update.is_active is not None:
+        account.is_active = update.is_active
+
+    await db.commit()
+    await db.refresh(account)
+    return account
 
 
 @router.delete("/{account_id}")
