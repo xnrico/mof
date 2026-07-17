@@ -1,8 +1,12 @@
 import axios from 'axios';
 
-// Relative base URL so calls go through the nginx /api proxy (works from any
-// device hitting the host, not just localhost). Override with VITE_API_URL.
-const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
+// VITE_API_URL can be set at build time for custom deployments.
+// Otherwise, derive the backend URL from the current hostname at runtime —
+// always port 8000 on the same host, regardless of which port/proxy serves
+// the frontend. This makes it work from localhost, LAN IP, or a domain.
+const API_BASE_URL =
+  import.meta.env.VITE_API_URL ||
+  `${window.location.protocol}//${window.location.hostname}:8000/api`;
 
 const client = axios.create({
   baseURL: API_BASE_URL,
