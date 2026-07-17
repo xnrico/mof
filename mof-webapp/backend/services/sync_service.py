@@ -1,9 +1,17 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from typing import List, Optional
-from datetime import datetime
-from models.models import Account, Transaction, IntegrationConfig, IntegrationProvider
+from datetime import datetime, timedelta
+from models.models import (
+    Account,
+    Transaction,
+    IntegrationConfig,
+    IntegrationProvider,
+    Category,
+    Currency,
+)
 from integrations import IntegrationFactory
+from config import settings
 import json
 
 
@@ -89,7 +97,7 @@ class SyncService:
                         external_transaction_id=txn_data.external_id,
                         description=txn_data.description,
                         amount=txn_data.amount,
-                        currency=txn_data.currency,
+                        currency=self._map_currency(txn_data.currency, account.currency),
                         category=self._map_category(txn_data.category),
                         transaction_date=txn_data.date,
                         merchant_name=txn_data.merchant_name,
@@ -149,13 +157,15 @@ class SyncService:
         }
 
         if provider == IntegrationProvider.PLAID:
-            credentials["client_id"] = config.config_data  # Store in config_data
-            credentials["secret"] = config.config_data
-            credentials["env"] = "sandbox"
+            # Plaid app-level credentials come from settings; the per-account
+            # access_token/item_id are stored on the integration config.
+            credentials["client_id"] = settings.PLAID_CLIENT_ID
+            credentials["secret"] = settings.PLAID_SECRET
+            credentials["env"] = settings.PLAID_ENV
             credentials["item_id"] = config.item_id
 
         elif provider == IntegrationProvider.GOCARDLESS:
-            credentials["env"] = "sandbox"
+            credentials["env"] = settings.GOCARDLESS_ENV
             credentials["requisition_id"] = config.item_id
 
         elif provider == IntegrationProvider.IBKR:
@@ -165,30 +175,44 @@ class SyncService:
 
         elif provider == IntegrationProvider.TRADING212:
             credentials["api_key"] = config.access_token
-            credentials["env"] = "demo"
+            credentials["env"] = settings.TRADING212_ENV
 
         return credentials
 
-    def _map_category(self, external_category: Optional[str]) -> str:
-        """Map external category to internal category"""
+    def _map_currency(self, currency_str: Optional[str], default: Currency) -> Currency:
+        """Coerce a provider currency string into the Currency enum.
+
+        Falls back to the account's own currency when the provider returns
+        something we don't model (e.g. EUR).
+        """
+        if not currency_str:
+            return default
+        try:
+            return Currency(currency_str)
+        except ValueError:
+            return default
+
+    def _map_category(self, external_category: Optional[str]) -> Category:
+        """Map external category to internal Category enum"""
         if not external_category:
-            return "Other"
+            return Category.OTHER
 
         # Simple mapping - can be enhanced
         category_map = {
-            "food": "Food",
-            "grocery": "Grocery",
-            "groceries": "Grocery",
-            "transportation": "Transport",
-            "travel": "Transport",
-            "rent": "Housing",
-            "mortgage": "Housing",
-            "entertainment": "Entertainment",
-            "recreation": "Entertainment",
-            "subscription": "Subscriptions",
-            "income": "Salary",
-            "dividend": "Dividend",
-            "interest": "Interest",
+            "food": Category.FOOD,
+            "grocery": Category.GROCERY,
+            "groceries": Category.GROCERY,
+            "transportation": Category.TRANSPORT,
+            "travel": Category.TRANSPORT,
+            "rent": Category.HOUSING,
+            "mortgage": Category.HOUSING,
+            "entertainment": Category.ENTERTAINMENT,
+            "recreation": Category.ENTERTAINMENT,
+            "subscription": Category.SUBSCRIPTIONS,
+            "income": Category.SALARY,
+            "dividend": Category.DIVIDEND,
+            "interest": Category.INTEREST,
+            "investment": Category.INVESTMENT,
         }
 
         external_lower = external_category.lower()
@@ -196,7 +220,4 @@ class SyncService:
             if key in external_lower:
                 return value
 
-        return "Other"
-
-
-from datetime import timedelta
+        return Category.OTHER

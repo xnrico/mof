@@ -21,6 +21,7 @@ class Category(str, enum.Enum):
     SUBSCRIPTIONS = "Subscriptions"
     KITTENS = "Kittens"
     SALARY = "Salary"
+    INVESTMENT = "Investment"
     INVESTMENT_GAIN = "Investment Gain"
     INVESTMENT_LOSS = "Investment Loss"
     DIVIDEND = "Dividend"
