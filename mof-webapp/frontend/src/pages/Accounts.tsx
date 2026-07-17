@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { RefreshCw } from 'lucide-react';
 import { api, formatCurrency, Account, SyncResult } from '../services/api';
@@ -21,6 +21,7 @@ function ProviderBadge({ provider }: { provider: string }) {
 export default function Accounts() {
   const queryClient = useQueryClient();
   const [messages, setMessages] = useState<Record<number, string>>({});
+  const [cooldowns, setCooldowns] = useState<Record<number, number>>({}); // accountId -> expiry timestamp
 
   const { data: accounts, isLoading } = useQuery<Account[]>({
     queryKey: ['accounts', 'all'],
@@ -36,13 +37,27 @@ export default function Accounts() {
           ? `✓ Synced: +${result.transactions_added} new, ${result.transactions_updated} updated`
           : `✗ ${result.error ?? 'Sync failed'}`,
       }));
+      // 30s cooldown after any sync attempt
+      setCooldowns((c) => ({ ...c, [result.account_id]: Date.now() + 30_000 }));
       queryClient.invalidateQueries({ queryKey: ['accounts'] });
     },
     onError: (err: unknown, accountId) => {
       const msg = err instanceof Error ? err.message : 'Request failed';
       setMessages((m) => ({ ...m, [accountId]: `✗ ${msg}` }));
+      setCooldowns((c) => ({ ...c, [accountId]: Date.now() + 30_000 }));
     },
   });
+
+  function isCoolingDown(accountId: number) {
+    return (cooldowns[accountId] ?? 0) > Date.now();
+  }
+
+  // Re-render every second so cooldown buttons re-enable automatically
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setTick((t) => t + 1), 1000);
+    return () => clearInterval(id);
+  }, []);
 
   return (
     <div className="px-4 py-6 space-y-4">
@@ -83,14 +98,24 @@ export default function Accounts() {
                     {a.last_synced_at ? new Date(a.last_synced_at).toLocaleString() : 'Never'}
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <button
-                      onClick={() => syncMutation.mutate(a.id)}
-                      disabled={syncMutation.isPending && syncMutation.variables === a.id}
-                      className="inline-flex items-center gap-1 px-3 py-1.5 text-sm rounded-md bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
-                    >
-                      <RefreshCw className={`h-4 w-4 ${syncMutation.isPending && syncMutation.variables === a.id ? 'animate-spin' : ''}`} />
-                      Sync
-                    </button>
+                    {(() => {
+                      const cooling = isCoolingDown(a.id);
+                      const syncing = syncMutation.isPending && syncMutation.variables === a.id;
+                      const secsLeft = cooling
+                        ? Math.ceil(((cooldowns[a.id] ?? 0) - Date.now()) / 1000)
+                        : 0;
+                      return (
+                        <button
+                          onClick={() => syncMutation.mutate(a.id)}
+                          disabled={syncing || cooling}
+                          title={cooling ? `Rate limit — wait ${secsLeft}s` : 'Sync account'}
+                          className="inline-flex items-center gap-1 px-3 py-1.5 text-sm rounded-md bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          <RefreshCw className={`h-4 w-4 ${syncing ? 'animate-spin' : ''}`} />
+                          {syncing ? 'Syncing…' : cooling ? `${secsLeft}s` : 'Sync'}
+                        </button>
+                      );
+                    })()}
                   </td>
                 </tr>
               ))}

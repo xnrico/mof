@@ -36,6 +36,9 @@ class Trading212Integration(BaseIntegration):
                     f"{self.base_url}/equity/account/summary",
                     headers={"Authorization": self._auth_header}
                 )
+                if response.status_code == 429:
+                    print("Trading 212 initialize failed: rate limited (429) — wait before retrying")
+                    return False
                 if response.status_code != 200:
                     print(
                         f"Trading 212 initialize failed: HTTP {response.status_code} "

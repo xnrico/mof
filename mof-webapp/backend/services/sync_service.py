@@ -60,9 +60,11 @@ class SyncService:
 
             # Initialize integration
             if not await integration.initialize():
-                result["error"] = "Failed to initialize integration"
+                # Check if it was a rate limit (the integration logs the reason)
+                error_msg = "Failed to initialize integration — if Trading212, wait 30s before retrying"
+                result["error"] = error_msg
                 integration_config.last_sync_status = "failed"
-                integration_config.last_error = "Initialization failed"
+                integration_config.last_error = error_msg
                 await self.db.commit()
                 return result
 
