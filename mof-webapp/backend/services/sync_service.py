@@ -194,7 +194,15 @@ class SyncService:
                 extra = json.loads(config.config_data)
                 credentials.update(extra)
 
-        elif provider == IntegrationProvider.TRADING212:
+        elif provider == IntegrationProvider.TRUELAYER:
+            from services.truelayer_client import TrueLayerClient
+            import json as _json
+            config_data = _json.loads(config.config_data or "{}") if config.config_data else {}
+            credentials["access_token"] = config.access_token
+            credentials["refresh_token"] = config.refresh_token
+            credentials["tl_account_id"] = config.item_id
+            credentials["token_expiry"] = config_data.get("token_expiry")
+            credentials["_client"] = TrueLayerClient(self.db)
             credentials["api_key"] = await provider_settings.get_effective(
                 self.db, "TRADING212_API_KEY", None
             )

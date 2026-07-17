@@ -4,6 +4,7 @@ from .plaid_integration import PlaidIntegration
 from .gocardless_integration import GoCardlessIntegration
 from .ibkr_integration import IBKRIntegration
 from .trading212_integration import Trading212Integration
+from .truelayer_integration import TrueLayerIntegration
 
 
 class IntegrationFactory:
@@ -14,6 +15,7 @@ class IntegrationFactory:
         "gocardless": GoCardlessIntegration,
         "ibkr": IBKRIntegration,
         "trading212": Trading212Integration,
+        "truelayer": TrueLayerIntegration,
     }
 
     @classmethod

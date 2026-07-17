@@ -40,6 +40,7 @@ class AccountType(str, enum.Enum):
 class IntegrationProvider(str, enum.Enum):
     PLAID = "Plaid"
     GOCARDLESS = "GoCardless"
+    TRUELAYER = "TrueLayer"
     IBKR = "IBKR"
     TRADING212 = "Trading212"
     MANUAL = "Manual"

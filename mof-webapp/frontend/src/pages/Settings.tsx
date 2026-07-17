@@ -216,6 +216,79 @@ function AccountIntegrationSection() {
   );
 }
 
+// ---- TrueLayer Bank Linking Section ----
+
+function TrueLayerLinkSection() {
+  const { data: accounts } = useQuery<Account[]>({
+    queryKey: ['accounts', 'all'],
+    queryFn: () => api.getAccounts(),
+  });
+
+  const tlAccounts = (accounts ?? []).filter((a) => a.provider === 'TrueLayer');
+  const [mofAccountId, setMofAccountId] = useState<number | ''>('');
+  const [redirecting, setRedirecting] = useState(false);
+  const [error, setError] = useState('');
+
+  async function handleConnect() {
+    if (!mofAccountId) return;
+    setError('');
+    setRedirecting(true);
+    try {
+      const origin = window.location.origin;
+      const data = await api.getTrueLayerLinkUrl(mofAccountId as number, origin);
+      window.location.href = data.auth_url;
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Failed to start TrueLayer auth');
+      setRedirecting(false);
+    }
+  }
+
+  return (
+    <div className="bg-white rounded-lg shadow-sm p-6 space-y-4">
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Which account are you linking?
+        </label>
+        <select
+          value={mofAccountId}
+          onChange={(e) => { setMofAccountId(e.target.value === '' ? '' : Number(e.target.value)); setError(''); }}
+          className="w-full px-3 py-2 rounded-md border border-gray-300 text-sm bg-white"
+        >
+          <option value="">Select a TrueLayer account…</option>
+          {tlAccounts.map((a) => (
+            <option key={a.id} value={a.id}>{a.name} ({a.currency})</option>
+          ))}
+        </select>
+        {tlAccounts.length === 0 && (
+          <p className="text-xs text-amber-600 mt-1">
+            No TrueLayer accounts found. Add one with provider "TrueLayer" via the API first.
+          </p>
+        )}
+      </div>
+
+      {mofAccountId !== '' && (
+        <div className="bg-blue-50 rounded-md p-4 space-y-3">
+          <p className="text-sm text-gray-700">
+            You'll be redirected to TrueLayer to select your bank and authorise read-only access.
+            After completing the bank's auth flow you'll be brought back to confirm the account.
+          </p>
+          <button
+            onClick={handleConnect}
+            disabled={redirecting}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 disabled:opacity-50"
+          >
+            {redirecting
+              ? <><Loader className="h-4 w-4 animate-spin" /> Redirecting to TrueLayer…</>
+              : <><ExternalLink className="h-4 w-4" /> Connect via TrueLayer</>
+            }
+          </button>
+          {error && <p className="text-sm text-red-600">{error}</p>}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ---- GoCardless Bank Linking Section ----
 
 interface Institution { id: string; name: string; logo: string | null; }
@@ -399,6 +472,15 @@ export default function Settings() {
           to your bank to authorise access, then brought back here to confirm.
         </p>
         <GoCardlessLinkSection />
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="text-xl font-semibold text-gray-800">Link TrueLayer Bank Account (UK)</h2>
+        <p className="text-sm text-gray-500">
+          Connect a UK bank account via TrueLayer Open Banking. You'll be redirected
+          to your bank to authorise read-only access, then brought back here to confirm.
+        </p>
+        <TrueLayerLinkSection />
       </section>
     </div>
   );

@@ -147,6 +147,30 @@ export const api = {
     const response = await client.post('/gocardless/set-account', data);
     return response.data;
   },
+
+  // TrueLayer bank linking
+  getTrueLayerLinkUrl: async (accountId: number, redirectBaseUrl: string) => {
+    const response = await client.get('/truelayer/link', {
+      params: { account_id: accountId, redirect_base_url: redirectBaseUrl },
+    });
+    return response.data;
+  },
+
+  exchangeTrueLayerCode: async (data: { account_id: number; code: string; redirect_uri: string }) => {
+    const response = await client.post('/truelayer/exchange', data);
+    return response.data;
+  },
+
+  setTrueLayerAccount: async (data: {
+    mof_account_id: number;
+    tl_account_id: string;
+    access_token: string;
+    refresh_token: string;
+    token_expires_in?: number;
+  }) => {
+    const response = await client.post('/truelayer/set-account', data);
+    return response.data;
+  },
 };
 
 export default api;

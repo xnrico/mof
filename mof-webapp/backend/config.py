@@ -23,7 +23,10 @@ class Settings(BaseSettings):
     GOCARDLESS_SECRET_KEY: Optional[str] = None
     GOCARDLESS_ENV: str = "sandbox"  # "sandbox" or "live"
 
-    # Interactive Brokers
+    # TrueLayer (UK Open Banking)
+    TRUELAYER_CLIENT_ID: Optional[str] = None
+    TRUELAYER_CLIENT_SECRET: Optional[str] = None
+    TRUELAYER_ENV: str = "sandbox"  # "sandbox" or "live"
     IBKR_ACCOUNT_ID: Optional[str] = None
     IBKR_HOST: str = "127.0.0.1"
     IBKR_PORT: int = 7497

@@ -23,6 +23,11 @@ PROVIDER_FIELDS = {
         {"key": "GOCARDLESS_SECRET_KEY", "label": "Secret Key", "secret": True},
         {"key": "GOCARDLESS_ENV", "label": "Environment (sandbox / live)", "secret": False},
     ],
+    "TrueLayer": [
+        {"key": "TRUELAYER_CLIENT_ID", "label": "Client ID", "secret": False},
+        {"key": "TRUELAYER_CLIENT_SECRET", "label": "Client Secret", "secret": True},
+        {"key": "TRUELAYER_ENV", "label": "Environment (sandbox / live)", "secret": False},
+    ],
     "Trading212": [
         {"key": "TRADING212_API_KEY", "label": "API Key (Public)", "secret": False},
         {"key": "TRADING212_API_SECRET", "label": "API Secret (Private)", "secret": True},
