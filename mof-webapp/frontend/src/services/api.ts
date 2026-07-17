@@ -1,12 +1,9 @@
 import axios from 'axios';
 
-// VITE_API_URL can be set at build time for custom deployments.
-// Otherwise, derive the backend URL from the current hostname at runtime —
-// always port 8000 on the same host, regardless of which port/proxy serves
-// the frontend. This makes it work from localhost, LAN IP, or a domain.
-const API_BASE_URL =
-  import.meta.env.VITE_API_URL ||
-  `${window.location.protocol}//${window.location.hostname}:8000/api`;
+// Use the same origin as the page (works through any reverse proxy).
+// Set VITE_API_URL at build time to override (e.g. when backend is on a
+// different host entirely).
+const API_BASE_URL = import.meta.env.VITE_API_URL || `${window.location.origin}/api`;
 
 const client = axios.create({
   baseURL: API_BASE_URL,
