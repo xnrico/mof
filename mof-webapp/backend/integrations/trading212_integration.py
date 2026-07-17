@@ -1,5 +1,6 @@
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timedelta
+import base64
 import httpx
 from .base import BaseIntegration, TransactionData, AccountData
 
@@ -9,10 +10,15 @@ class Trading212Integration(BaseIntegration):
 
     def __init__(self, credentials: Dict[str, Any]):
         super().__init__(credentials)
-        self.api_key = credentials.get("api_key")
-        self.env = credentials.get("env", "demo")
+        api_key = credentials.get("api_key") or ""
+        api_secret = credentials.get("api_secret") or ""
+        self.env = credentials.get("env", "live")
 
-        # Trading 212 API endpoints
+        # Trading 212 uses HTTP Basic auth: base64("key:secret")
+        raw = f"{api_key}:{api_secret}".encode()
+        self._auth_header = f"Basic {base64.b64encode(raw).decode()}"
+        self._configured = bool(api_key and api_secret)
+
         self.base_url = (
             "https://live.trading212.com/api/v0"
             if self.env == "live"
@@ -21,14 +27,14 @@ class Trading212Integration(BaseIntegration):
 
     async def initialize(self) -> bool:
         """Initialize Trading 212 client"""
-        if not self.api_key:
-            print("Trading 212: no API key configured")
+        if not self._configured:
+            print("Trading 212: api_key or api_secret not configured")
             return False
         try:
             async with httpx.AsyncClient(timeout=10) as client:
                 response = await client.get(
                     f"{self.base_url}/equity/account/info",
-                    headers={"Authorization": self.api_key}
+                    headers={"Authorization": self._auth_header}
                 )
                 if response.status_code != 200:
                     print(
@@ -48,7 +54,7 @@ class Trading212Integration(BaseIntegration):
                 # Get account info
                 response = await client.get(
                     f"{self.base_url}/equity/account/info",
-                    headers={"Authorization": self.api_key}
+                    headers={"Authorization": self._auth_header}
                 )
 
                 if response.status_code != 200:
@@ -59,7 +65,7 @@ class Trading212Integration(BaseIntegration):
                 # Get cash info
                 cash_response = await client.get(
                     f"{self.base_url}/equity/account/cash",
-                    headers={"Authorization": self.api_key}
+                    headers={"Authorization": self._auth_header}
                 )
 
                 balance = 0.0
@@ -102,7 +108,7 @@ class Trading212Integration(BaseIntegration):
                 # Get order history
                 orders_response = await client.get(
                     f"{self.base_url}/equity/history/orders",
-                    headers={"Authorization": self.api_key}
+                    headers={"Authorization": self._auth_header}
                 )
 
                 if orders_response.status_code == 200:
@@ -138,10 +144,8 @@ class Trading212Integration(BaseIntegration):
                 # Get dividend history
                 dividends_response = await client.get(
                     f"{self.base_url}/history/dividends",
-                    headers={"Authorization": self.api_key},
-                    params={
-                        "limit": 50
-                    }
+                    headers={"Authorization": self._auth_header},
+                    params={"limit": 50}
                 )
 
                 if dividends_response.status_code == 200:
@@ -175,8 +179,7 @@ class Trading212Integration(BaseIntegration):
             async with httpx.AsyncClient() as client:
                 response = await client.get(
                     f"{self.base_url}/equity/account/cash",
-                    headers={"Authorization": self.api_key}
-                )
+                    headers={"Authorization": self._auth_header}                )
 
                 if response.status_code == 200:
                     data = response.json()

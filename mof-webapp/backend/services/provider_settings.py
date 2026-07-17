@@ -23,7 +23,9 @@ PROVIDER_FIELDS = {
         {"key": "GOCARDLESS_ENV", "label": "Environment", "secret": False},
     ],
     "Trading212": [
-        {"key": "TRADING212_ENV", "label": "Environment", "secret": False},
+        {"key": "TRADING212_API_KEY", "label": "API Key (Public)", "secret": False},
+        {"key": "TRADING212_API_SECRET", "label": "API Secret (Private)", "secret": True},
+        {"key": "TRADING212_ENV", "label": "Environment (live / demo)", "secret": False},
     ],
     "IBKR": [
         {"key": "IBKR_HOST", "label": "Host", "secret": False},

@@ -194,7 +194,12 @@ class SyncService:
                 credentials.update(extra)
 
         elif provider == IntegrationProvider.TRADING212:
-            credentials["api_key"] = config.access_token
+            credentials["api_key"] = await provider_settings.get_effective(
+                self.db, "TRADING212_API_KEY", None
+            )
+            credentials["api_secret"] = await provider_settings.get_effective(
+                self.db, "TRADING212_API_SECRET", None
+            )
             credentials["env"] = await provider_settings.get_effective(
                 self.db, "TRADING212_ENV", settings.TRADING212_ENV
             )
