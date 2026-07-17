@@ -33,7 +33,7 @@ class Trading212Integration(BaseIntegration):
         try:
             async with httpx.AsyncClient(timeout=10) as client:
                 response = await client.get(
-                    f"{self.base_url}/equity/account/info",
+                    f"{self.base_url}/equity/account/summary",
                     headers={"Authorization": self._auth_header}
                 )
                 if response.status_code != 200:
