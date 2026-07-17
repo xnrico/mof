@@ -4,6 +4,9 @@ Migration: add TrueLayer to integrationprovider enum and update GoCardless accou
 
 Run inside the backend container:
   docker compose exec backend python migrate.py
+
+Note: SQLAlchemy stores Python enum member NAMES (e.g. 'GOCARDLESS', 'TRUELAYER')
+in Postgres, not the Python enum .values ('GoCardless', 'TrueLayer').
 """
 import asyncio
 import os
@@ -15,53 +18,73 @@ async def run():
     from sqlalchemy.ext.asyncio import create_async_engine
     from sqlalchemy import text
 
-    # Step 1: add enum value — must run outside any transaction in a fresh connection
-    engine_ddl = create_async_engine(DATABASE_URL, echo=False,
-                                     isolation_level="AUTOCOMMIT")
-    async with engine_ddl.connect() as conn:
-        print("Step 1: checking existing integrationprovider values...")
+    # Step 1: inspect existing enum values and diagnose
+    engine_ro = create_async_engine(DATABASE_URL, echo=False)
+    async with engine_ro.connect() as conn:
         result = await conn.execute(text(
             "SELECT unnest(enum_range(NULL::integrationprovider))::text"
         ))
         existing = [r[0] for r in result.fetchall()]
-        print(f"  Current values: {existing}")
+        print(f"Current integrationprovider enum values: {existing}")
 
-        if "TrueLayer" not in existing:
-            print("  Adding 'TrueLayer'...")
+        result2 = await conn.execute(text(
+            "SELECT DISTINCT provider::text FROM accounts"
+        ))
+        current_providers = [r[0] for r in result2.fetchall()]
+        print(f"Current account providers in DB: {current_providers}")
+    await engine_ro.dispose()
+
+    # Step 2: add 'TRUELAYER' if missing (SQLAlchemy uses names, not values)
+    engine_ddl = create_async_engine(DATABASE_URL, echo=False,
+                                     isolation_level="AUTOCOMMIT")
+    async with engine_ddl.connect() as conn:
+        if "TRUELAYER" not in existing:
+            print("Adding 'TRUELAYER' to enum...")
             await conn.execute(text(
-                "ALTER TYPE integrationprovider ADD VALUE 'TrueLayer'"
+                "ALTER TYPE integrationprovider ADD VALUE 'TRUELAYER'"
             ))
             print("  Done.")
         else:
-            print("  'TrueLayer' already present, skipping.")
+            print("'TRUELAYER' already in enum, skipping ALTER TYPE.")
 
+        # Clean up any 'TrueLayer' (value-style) accidentally stored by prior migration
+        if "TrueLayer" in existing:
+            print("Note: 'TrueLayer' (value-style) is also in the enum — rows using it will be fixed below.")
     await engine_ddl.dispose()
 
-    # Step 2: update rows — use ::text casting to avoid cached type issues
+    # Step 3: update rows — GOCARDLESS → TRUELAYER, fix any TrueLayer rows
     engine_dml = create_async_engine(DATABASE_URL, echo=False)
     async with engine_dml.begin() as conn:
-        # Determine which GoCardless value name is in use
-        result = await conn.execute(text(
-            "SELECT unnest(enum_range(NULL::integrationprovider))::text"
+        # Fix accounts stored with value-style 'TrueLayer' → name-style 'TRUELAYER'
+        r = await conn.execute(text(
+            "UPDATE accounts SET provider = 'TRUELAYER' WHERE provider::text = 'TrueLayer'"
         ))
-        enum_values = [r[0] for r in result.fetchall()]
-        gc_value = next((v for v in enum_values if v.lower() == "gocardless"), None)
-        print(f"\nStep 2: GoCardless enum value is: {gc_value!r}")
+        if r.rowcount:
+            print(f"Fixed {r.rowcount} account(s): 'TrueLayer' → 'TRUELAYER'")
 
-        if gc_value:
-            r = await conn.execute(text(
-                f"UPDATE accounts SET provider = 'TrueLayer'::integrationprovider "
-                f"WHERE provider::text = :gc"
-            ), {"gc": gc_value})
-            print(f"  accounts updated: {r.rowcount}")
+        r = await conn.execute(text(
+            "UPDATE integration_configs SET provider = 'TRUELAYER' WHERE provider::text = 'TrueLayer'"
+        ))
+        if r.rowcount:
+            print(f"Fixed {r.rowcount} integration_config(s): 'TrueLayer' → 'TRUELAYER'")
 
-            r = await conn.execute(text(
-                f"UPDATE integration_configs SET provider = 'TrueLayer'::integrationprovider "
-                f"WHERE provider::text = :gc"
-            ), {"gc": gc_value})
-            print(f"  integration_configs updated: {r.rowcount}")
-        else:
-            print("  No GoCardless value found in enum — skipping row updates.")
+        # Update GOCARDLESS → TRUELAYER (SQLAlchemy uses names)
+        r = await conn.execute(text(
+            "UPDATE accounts SET provider = 'TRUELAYER' WHERE provider::text = 'GOCARDLESS'"
+        ))
+        print(f"Updated {r.rowcount} account(s): GOCARDLESS → TRUELAYER")
+
+        r = await conn.execute(text(
+            "UPDATE integration_configs SET provider = 'TRUELAYER' WHERE provider::text = 'GOCARDLESS'"
+        ))
+        print(f"Updated {r.rowcount} integration_config(s): GOCARDLESS → TRUELAYER")
+
+        # Verify final state
+        result = await conn.execute(text(
+            "SELECT DISTINCT provider::text FROM accounts ORDER BY 1"
+        ))
+        final = [r[0] for r in result.fetchall()]
+        print(f"Final account providers: {final}")
 
     await engine_dml.dispose()
     print("\nMigration complete.")
