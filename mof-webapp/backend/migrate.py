@@ -86,7 +86,34 @@ async def run():
         final = [r[0] for r in result.fetchall()]
         print(f"Final account providers: {final}")
 
-    await engine_dml.dispose()
+    # Schema migration: add columns/tables introduced by the Account Management feature
+    engine_schema = create_async_engine(DATABASE_URL, echo=False, isolation_level="AUTOCOMMIT")
+    async with engine_schema.connect() as conn:
+        print("\nStep 4: Schema migrations for Account Management feature...")
+
+        # provider_key_pairs table (create_all handles new tables on startup,
+        # but include here for explicit documentation)
+        await conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS provider_key_pairs (
+                id SERIAL PRIMARY KEY,
+                provider integrationprovider NOT NULL,
+                name VARCHAR(100) NOT NULL,
+                credentials TEXT,
+                is_active BOOLEAN NOT NULL DEFAULT TRUE,
+                created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW()
+            )
+        """))
+        print("  provider_key_pairs table: OK")
+
+        # key_pair_id FK on integration_configs (ALTER TABLE — idempotent)
+        await conn.execute(text("""
+            ALTER TABLE integration_configs
+            ADD COLUMN IF NOT EXISTS key_pair_id INTEGER
+            REFERENCES provider_key_pairs(id) ON DELETE SET NULL
+        """))
+        print("  integration_configs.key_pair_id column: OK")
+
+    await engine_schema.dispose()
     print("\nMigration complete.")
 
 
