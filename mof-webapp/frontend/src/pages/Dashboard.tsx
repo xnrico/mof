@@ -1,0 +1,140 @@
+import { useState } from 'react';
+import type { ReactNode } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
+import { Wallet, TrendingUp } from 'lucide-react';
+import { api, formatCurrency, User, Account, IncomeSource, CategorySummary } from '../services/api';
+
+const COLORS = [
+  '#2563eb', '#16a34a', '#dc2626', '#d97706', '#7c3aed',
+  '#0891b2', '#db2777', '#65a30d', '#ea580c', '#4f46e5',
+  '#0d9488', '#be123c', '#a16207', '#475569',
+];
+
+function Card({ children }: { children: ReactNode }) {
+  return <div className="bg-white rounded-lg shadow-sm p-6">{children}</div>;
+}
+
+export default function Dashboard() {
+  const [userId, setUserId] = useState<number | null>(null);
+
+  const { data: users } = useQuery<User[]>({ queryKey: ['users'], queryFn: () => api.getUsers() });
+
+  // Default to the first user once loaded
+  const activeUserId = userId ?? users?.[0]?.id ?? null;
+
+  const { data: accounts } = useQuery<Account[]>({
+    queryKey: ['accounts', activeUserId],
+    queryFn: () => api.getAccounts(activeUserId!),
+    enabled: activeUserId != null,
+  });
+
+  const { data: income } = useQuery<IncomeSource[]>({
+    queryKey: ['income', activeUserId],
+    queryFn: () => api.getIncomeSources(activeUserId!),
+    enabled: activeUserId != null,
+  });
+
+  const { data: summary } = useQuery<CategorySummary[]>({
+    queryKey: ['summary', activeUserId],
+    queryFn: () => api.getCategorySummary(activeUserId!, { currency: 'GBP' }),
+    enabled: activeUserId != null,
+  });
+
+  // Aggregate balances per currency
+  const balancesByCurrency: Record<string, number> = {};
+  (accounts ?? []).forEach((a) => {
+    if (a.current_balance != null) {
+      balancesByCurrency[a.currency] = (balancesByCurrency[a.currency] ?? 0) + a.current_balance;
+    }
+  });
+
+  const monthlyIncome = (income ?? [])
+    .filter((i) => i.frequency === 'monthly')
+    .reduce((sum, i) => sum + i.amount, 0);
+
+  const chartData = (summary ?? [])
+    .filter((s) => s.total > 0)
+    .map((s) => ({ name: s.category, value: Math.abs(s.total) }));
+
+  return (
+    <div className="px-4 py-6 space-y-6">
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
+        {users && users.length > 0 && (
+          <div className="flex gap-2">
+            {users.map((u) => (
+              <button
+                key={u.id}
+                onClick={() => setUserId(u.id)}
+                className={`px-4 py-2 rounded-md text-sm font-medium ${
+                  activeUserId === u.id
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-white text-gray-700 shadow-sm hover:bg-gray-50'
+                }`}
+              >
+                {u.name}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Summary cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <Card>
+          <div className="flex items-center gap-3">
+            <Wallet className="h-8 w-8 text-blue-600" />
+            <div>
+              <p className="text-sm text-gray-500">Total Balance</p>
+              <div className="text-2xl font-bold text-gray-900">
+                {Object.keys(balancesByCurrency).length === 0
+                  ? '—'
+                  : Object.entries(balancesByCurrency).map(([cur, amt]) => (
+                      <div key={cur}>{formatCurrency(amt, cur)}</div>
+                    ))}
+              </div>
+            </div>
+          </div>
+        </Card>
+        <Card>
+          <div className="flex items-center gap-3">
+            <TrendingUp className="h-8 w-8 text-green-600" />
+            <div>
+              <p className="text-sm text-gray-500">Monthly Income</p>
+              <p className="text-2xl font-bold text-gray-900">{formatCurrency(monthlyIncome, 'GBP')}</p>
+            </div>
+          </div>
+        </Card>
+        <Card>
+          <div>
+            <p className="text-sm text-gray-500">Accounts</p>
+            <p className="text-2xl font-bold text-gray-900">{accounts?.length ?? 0}</p>
+          </div>
+        </Card>
+      </div>
+
+      {/* Spending by category */}
+      <Card>
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">Spending by Category (GBP)</h2>
+        {chartData.length === 0 ? (
+          <p className="text-gray-500 text-sm py-12 text-center">
+            No transactions yet. Configure an integration and sync an account to see spending here.
+          </p>
+        ) : (
+          <ResponsiveContainer width="100%" height={320}>
+            <PieChart>
+              <Pie data={chartData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={110} label>
+                {chartData.map((_, i) => (
+                  <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                ))}
+              </Pie>
+              <Tooltip formatter={(v: number) => formatCurrency(v, 'GBP')} />
+              <Legend />
+            </PieChart>
+          </ResponsiveContainer>
+        )}
+      </Card>
+    </div>
+  );
+}

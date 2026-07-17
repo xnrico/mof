@@ -1,6 +1,8 @@
 import axios from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+// Relative base URL so calls go through the nginx /api proxy (works from any
+// device hitting the host, not just localhost). Override with VITE_API_URL.
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
 const client = axios.create({
   baseURL: API_BASE_URL,
@@ -112,6 +114,99 @@ export const api = {
     const response = await client.get(`/sync/status/${accountId}`);
     return response.data;
   },
+
+  // Provider settings
+  getProviderSettings: async () => {
+    const response = await client.get('/settings/providers');
+    return response.data;
+  },
+
+  updateProviderSettings: async (values: Record<string, string>) => {
+    const response = await client.put('/settings/providers', { values });
+    return response.data;
+  },
 };
 
 export default api;
+
+// ---- Shared types ----
+export interface User {
+  id: number;
+  name: string;
+  email: string | null;
+  created_at: string;
+}
+
+export interface IncomeSource {
+  id: number;
+  name: string;
+  amount: number;
+  currency: string;
+  frequency: string;
+  is_active: boolean;
+}
+
+export interface Account {
+  id: number;
+  user_id: number;
+  name: string;
+  account_type: string;
+  currency: string;
+  provider: string;
+  current_balance: number | null;
+  last_synced_at: string | null;
+  is_active: boolean;
+}
+
+export interface Transaction {
+  id: number;
+  account_id: number;
+  external_transaction_id: string | null;
+  description: string;
+  amount: number;
+  currency: string;
+  category: string;
+  transaction_date: string;
+  merchant_name: string | null;
+  notes: string | null;
+  category_override: string | null;
+  is_hidden: boolean;
+}
+
+export interface CategorySummary {
+  category: string;
+  total: number;
+  count: number;
+}
+
+export interface SyncResult {
+  account_id: number;
+  success: boolean;
+  transactions_added: number;
+  transactions_updated: number;
+  error: string | null;
+}
+
+export interface ProviderField {
+  key: string;
+  label: string;
+  secret: boolean;
+  value: string | null;
+  is_set: boolean;
+}
+
+export interface ProviderSettings {
+  provider: string;
+  fields: ProviderField[];
+}
+
+const CURRENCY_SYMBOLS: Record<string, string> = { GBP: '£', USD: '$' };
+
+export function formatCurrency(amount: number | null | undefined, currency = 'GBP'): string {
+  const symbol = CURRENCY_SYMBOLS[currency] ?? '';
+  if (amount === null || amount === undefined) return `${symbol}—`;
+  return `${symbol}${amount.toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+}

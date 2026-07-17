@@ -175,3 +175,17 @@ class ExchangeRate(Base):
     date: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class AppSetting(Base):
+    """Global key/value settings (e.g. provider app credentials).
+
+    Overrides the corresponding values from the environment/.env at runtime.
+    """
+    __tablename__ = "app_settings"
+
+    key: Mapped[str] = mapped_column(String(100), primary_key=True)
+    value: Mapped[Optional[str]] = mapped_column(Text)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )

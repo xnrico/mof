@@ -1,46 +1,19 @@
-import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, NavLink } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { DollarSign, CreditCard, List, Settings as SettingsIcon } from 'lucide-react';
+import Dashboard from './pages/Dashboard';
+import Accounts from './pages/Accounts';
+import Transactions from './pages/Transactions';
+import Settings from './pages/Settings';
 
 const queryClient = new QueryClient();
 
-// Placeholder components until you build the actual pages
-function Dashboard() {
-  return (
-    <div className="px-4 py-6">
-      <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-      <p className="mt-4">Welcome to Ministry of Finance</p>
-    </div>
-  );
-}
-
-function Accounts() {
-  return (
-    <div className="px-4 py-6">
-      <h1 className="text-3xl font-bold text-gray-900">Accounts</h1>
-      <p className="mt-4">Manage your accounts here</p>
-    </div>
-  );
-}
-
-function Transactions() {
-  return (
-    <div className="px-4 py-6">
-      <h1 className="text-3xl font-bold text-gray-900">Transactions</h1>
-      <p className="mt-4">View your transactions here</p>
-    </div>
-  );
-}
-
-function Settings() {
-  return (
-    <div className="px-4 py-6">
-      <h1 className="text-3xl font-bold text-gray-900">Settings</h1>
-      <p className="mt-4">Configure your settings here</p>
-    </div>
-  );
-}
+const navItems = [
+  { to: '/', label: 'Dashboard', icon: DollarSign, end: true },
+  { to: '/accounts', label: 'Accounts', icon: CreditCard, end: false },
+  { to: '/transactions', label: 'Transactions', icon: List, end: false },
+  { to: '/settings', label: 'Settings', icon: SettingsIcon, end: false },
+];
 
 function App() {
   return (
@@ -58,35 +31,24 @@ function App() {
                       Ministry of Finance
                     </span>
                   </div>
-                  <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
-                    <Link
-                      to="/"
-                      className="border-blue-500 text-gray-900 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
-                    >
-                      <DollarSign className="h-4 w-4 mr-2" />
-                      Dashboard
-                    </Link>
-                    <Link
-                      to="/accounts"
-                      className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
-                    >
-                      <CreditCard className="h-4 w-4 mr-2" />
-                      Accounts
-                    </Link>
-                    <Link
-                      to="/transactions"
-                      className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
-                    >
-                      <List className="h-4 w-4 mr-2" />
-                      Transactions
-                    </Link>
-                    <Link
-                      to="/settings"
-                      className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
-                    >
-                      <SettingsIcon className="h-4 w-4 mr-2" />
-                      Settings
-                    </Link>
+                  <div className="ml-6 flex space-x-4 sm:space-x-8">
+                    {navItems.map(({ to, label, icon: Icon, end }) => (
+                      <NavLink
+                        key={to}
+                        to={to}
+                        end={end}
+                        className={({ isActive }) =>
+                          `inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium ${
+                            isActive
+                              ? 'border-blue-500 text-gray-900'
+                              : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+                          }`
+                        }
+                      >
+                        <Icon className="h-4 w-4 mr-2" />
+                        <span className="hidden sm:inline">{label}</span>
+                      </NavLink>
+                    ))}
                   </div>
                 </div>
               </div>

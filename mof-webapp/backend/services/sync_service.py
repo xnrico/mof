@@ -12,6 +12,7 @@ from models.models import (
 )
 from integrations import IntegrationFactory
 from config import settings
+from services import provider_settings
 import json
 
 
@@ -54,7 +55,7 @@ class SyncService:
                 return result
 
             # Create integration instance
-            credentials = self._build_credentials(account.provider, integration_config)
+            credentials = await self._build_credentials(account.provider, integration_config)
             integration = IntegrationFactory.create(account.provider.value, credentials)
 
             # Initialize integration
@@ -149,33 +150,54 @@ class SyncService:
 
         return results
 
-    def _build_credentials(self, provider: IntegrationProvider, config: IntegrationConfig) -> dict:
-        """Build credentials dictionary for integration"""
+    async def _build_credentials(self, provider: IntegrationProvider, config: IntegrationConfig) -> dict:
+        """Build credentials dictionary for integration.
+
+        App-level provider keys come from the effective settings (DB override
+        with .env fallback); per-account tokens come from the IntegrationConfig.
+        """
         credentials = {
             "access_token": config.access_token,
             "refresh_token": config.refresh_token,
         }
 
         if provider == IntegrationProvider.PLAID:
-            # Plaid app-level credentials come from settings; the per-account
-            # access_token/item_id are stored on the integration config.
-            credentials["client_id"] = settings.PLAID_CLIENT_ID
-            credentials["secret"] = settings.PLAID_SECRET
-            credentials["env"] = settings.PLAID_ENV
+            credentials["client_id"] = await provider_settings.get_effective(
+                self.db, "PLAID_CLIENT_ID", settings.PLAID_CLIENT_ID
+            )
+            credentials["secret"] = await provider_settings.get_effective(
+                self.db, "PLAID_SECRET", settings.PLAID_SECRET
+            )
+            credentials["env"] = await provider_settings.get_effective(
+                self.db, "PLAID_ENV", settings.PLAID_ENV
+            )
             credentials["item_id"] = config.item_id
 
         elif provider == IntegrationProvider.GOCARDLESS:
-            credentials["env"] = settings.GOCARDLESS_ENV
+            credentials["env"] = await provider_settings.get_effective(
+                self.db, "GOCARDLESS_ENV", settings.GOCARDLESS_ENV
+            )
             credentials["requisition_id"] = config.item_id
 
         elif provider == IntegrationProvider.IBKR:
+            credentials["host"] = await provider_settings.get_effective(
+                self.db, "IBKR_HOST", settings.IBKR_HOST
+            )
+            credentials["port"] = await provider_settings.get_effective(
+                self.db, "IBKR_PORT", str(settings.IBKR_PORT)
+            )
+            credentials["account_id"] = await provider_settings.get_effective(
+                self.db, "IBKR_ACCOUNT_ID", settings.IBKR_ACCOUNT_ID
+            )
             if config.config_data:
                 extra = json.loads(config.config_data)
                 credentials.update(extra)
 
         elif provider == IntegrationProvider.TRADING212:
             credentials["api_key"] = config.access_token
-            credentials["env"] = settings.TRADING212_ENV
+            credentials["env"] = await provider_settings.get_effective(
+                self.db, "TRADING212_ENV", settings.TRADING212_ENV
+            )
 
         return credentials
 
