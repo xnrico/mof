@@ -84,7 +84,9 @@ class Account(Base):
     # Relationships
     user: Mapped["User"] = relationship(back_populates="accounts")
     transactions: Mapped[List["Transaction"]] = relationship(back_populates="account", cascade="all, delete-orphan")
-    integration_config: Mapped[Optional["IntegrationConfig"]] = relationship(back_populates="account", uselist=False)
+    integration_config: Mapped[Optional["IntegrationConfig"]] = relationship(
+        back_populates="account", uselist=False, cascade="all, delete-orphan", single_parent=True
+    )
 
 
 class Transaction(Base):
