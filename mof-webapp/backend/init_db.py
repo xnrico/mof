@@ -4,6 +4,7 @@ Database initialization and seed script for Ministry of Finance
 """
 import asyncio
 from datetime import datetime
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
 
@@ -35,7 +36,7 @@ async def init_database():
 
 
 async def seed_sample_data():
-    """Seed database with sample data"""
+    """Seed database with sample data (idempotent - safe to re-run)"""
     print("\n🌱 Seeding sample data...")
 
     engine = create_async_engine(DATABASE_URL, echo=False)
@@ -43,99 +44,101 @@ async def seed_sample_data():
         engine, class_=AsyncSession, expire_on_commit=False
     )
 
+    async def get_or_create_user(session, name, email):
+        existing = (
+            await session.execute(select(User).where(User.email == email))
+        ).scalar_one_or_none()
+        if existing:
+            return existing, False
+        user = User(name=name, email=email)
+        session.add(user)
+        await session.flush()
+        return user, True
+
+    async def get_or_create_income(session, user_id, name, amount, currency, frequency):
+        existing = (
+            await session.execute(
+                select(IncomeSource).where(
+                    IncomeSource.user_id == user_id, IncomeSource.name == name
+                )
+            )
+        ).scalar_one_or_none()
+        if existing:
+            return False
+        session.add(
+            IncomeSource(
+                user_id=user_id,
+                name=name,
+                amount=amount,
+                currency=currency,
+                frequency=frequency,
+            )
+        )
+        return True
+
+    async def get_or_create_account(session, user_id, name, account_type, currency, provider):
+        existing = (
+            await session.execute(
+                select(Account).where(
+                    Account.user_id == user_id, Account.name == name
+                )
+            )
+        ).scalar_one_or_none()
+        if existing:
+            return False
+        session.add(
+            Account(
+                user_id=user_id,
+                name=name,
+                account_type=account_type,
+                currency=currency,
+                provider=provider,
+                is_active=True,
+            )
+        )
+        return True
+
     async with async_session() as session:
         # Create users (family members)
-        babu = User(name="Babu", email="babu@family.com")
-        mamu = User(name="Mamu", email="mamu@family.com")
-
-        session.add(babu)
-        session.add(mamu)
+        babu, babu_new = await get_or_create_user(session, "Babu", "babu@family.com")
+        mamu, mamu_new = await get_or_create_user(session, "Mamu", "mamu@family.com")
         await session.commit()
         await session.refresh(babu)
         await session.refresh(mamu)
 
-        print(f"✅ Created users: {babu.name} (ID: {babu.id}), {mamu.name} (ID: {mamu.id})")
+        def status(created):
+            return "created" if created else "already exists"
+
+        print(f"✅ Users: {babu.name} (ID: {babu.id}, {status(babu_new)}), "
+              f"{mamu.name} (ID: {mamu.id}, {status(mamu_new)})")
 
         # Create income sources
-        babu_income = IncomeSource(
-            user_id=babu.id,
-            name="Monthly Salary",
-            amount=4500.0,
-            currency=Currency.GBP,
-            frequency="monthly"
+        income_added = 0
+        income_added += await get_or_create_income(
+            session, babu.id, "Monthly Salary", 4500.0, Currency.GBP, "monthly"
         )
-
-        mamu_income = IncomeSource(
-            user_id=mamu.id,
-            name="Monthly Salary",
-            amount=3200.0,
-            currency=Currency.GBP,
-            frequency="monthly"
+        income_added += await get_or_create_income(
+            session, mamu.id, "Monthly Salary", 3200.0, Currency.GBP, "monthly"
         )
-
-        session.add(babu_income)
-        session.add(mamu_income)
         await session.commit()
-
-        print(f"✅ Created income sources")
+        print(f"✅ Income sources: {income_added} created, {2 - income_added} already existed")
 
         # Create sample accounts
-        babu_uk_bank = Account(
-            user_id=babu.id,
-            name="UK Current Account",
-            account_type=AccountType.CHECKING,
-            currency=Currency.GBP,
-            provider=IntegrationProvider.GOCARDLESS,
-            is_active=True
-        )
-
-        babu_us_bank = Account(
-            user_id=babu.id,
-            name="US Checking Account",
-            account_type=AccountType.CHECKING,
-            currency=Currency.USD,
-            provider=IntegrationProvider.PLAID,
-            is_active=True
-        )
-
-        babu_ibkr = Account(
-            user_id=babu.id,
-            name="Interactive Brokers",
-            account_type=AccountType.BROKERAGE,
-            currency=Currency.USD,
-            provider=IntegrationProvider.IBKR,
-            is_active=True
-        )
-
-        mamu_uk_bank = Account(
-            user_id=mamu.id,
-            name="UK Current Account",
-            account_type=AccountType.CHECKING,
-            currency=Currency.GBP,
-            provider=IntegrationProvider.GOCARDLESS,
-            is_active=True
-        )
-
-        mamu_trading212 = Account(
-            user_id=mamu.id,
-            name="Trading 212",
-            account_type=AccountType.BROKERAGE,
-            currency=Currency.GBP,
-            provider=IntegrationProvider.TRADING212,
-            is_active=True
-        )
-
-        session.add_all([
-            babu_uk_bank,
-            babu_us_bank,
-            babu_ibkr,
-            mamu_uk_bank,
-            mamu_trading212
-        ])
-
+        accounts = [
+            (babu.id, "UK Current Account", AccountType.CHECKING, Currency.GBP, IntegrationProvider.GOCARDLESS),
+            (babu.id, "US Checking Account", AccountType.CHECKING, Currency.USD, IntegrationProvider.PLAID),
+            (babu.id, "Interactive Brokers", AccountType.BROKERAGE, Currency.USD, IntegrationProvider.IBKR),
+            (mamu.id, "UK Current Account", AccountType.CHECKING, Currency.GBP, IntegrationProvider.GOCARDLESS),
+            (mamu.id, "Trading 212", AccountType.BROKERAGE, Currency.GBP, IntegrationProvider.TRADING212),
+        ]
+        accounts_added = 0
+        for user_id, name, acc_type, currency, provider in accounts:
+            accounts_added += await get_or_create_account(
+                session, user_id, name, acc_type, currency, provider
+            )
         await session.commit()
 
-        print(f"✅ Created 5 sample accounts")
+        print(f"✅ Accounts: {accounts_added} created, {len(accounts) - accounts_added} already existed")
         print(f"   - Babu: UK Bank, US Bank, IBKR")
         print(f"   - Mamu: UK Bank, Trading 212")
 
