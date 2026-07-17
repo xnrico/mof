@@ -131,7 +131,7 @@ class TrueLayerClient:
         if not client_id:
             return None
         sandbox = await self._is_sandbox()
-        providers = "sandbox" if sandbox else "uk-ob-all uk-oauth-all"
+        providers = "mock" if sandbox else "uk-ob-all uk-oauth-all"
         params = urllib.parse.urlencode({
             "response_type": "code",
             "client_id": client_id,
