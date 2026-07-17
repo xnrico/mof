@@ -203,12 +203,22 @@ class SyncService:
             credentials["tl_account_id"] = config.item_id
             credentials["token_expiry"] = config_data.get("token_expiry")
             credentials["_client"] = TrueLayerClient(self.db)
-            credentials["api_key"] = await provider_settings.get_effective(
+
+        elif provider == IntegrationProvider.TRADING212:
+            # api_key/api_secret come from provider-level app_settings.
+            # Fall back to IntegrationConfig.access_token for backward compat
+            # (older setup stored the key there directly).
+            api_key = await provider_settings.get_effective(
                 self.db, "TRADING212_API_KEY", None
             )
-            credentials["api_secret"] = await provider_settings.get_effective(
+            api_secret = await provider_settings.get_effective(
                 self.db, "TRADING212_API_SECRET", None
             )
+            # Legacy fallback: key was stored as access_token in IntegrationConfig
+            if not api_key and config.access_token:
+                api_key = config.access_token
+            credentials["api_key"] = api_key
+            credentials["api_secret"] = api_secret
             credentials["env"] = await provider_settings.get_effective(
                 self.db, "TRADING212_ENV", settings.TRADING212_ENV
             )
