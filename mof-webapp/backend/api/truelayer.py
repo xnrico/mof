@@ -40,7 +40,7 @@ async def get_link_url(account_id: int, redirect_base_url: str, db: AsyncSession
     if not account:
         raise HTTPException(404, "Account not found")
 
-    redirect_uri = f"{redirect_base_url.rstrip('/')}/truelayer/callback?account_id={account_id}"
+    redirect_uri = f"{redirect_base_url.rstrip('/')}/truelayer/callback"
     client = TrueLayerClient(db)
     url = await client.build_connection_auth_url(redirect_uri=redirect_uri, account_id=account_id)
     if not url:

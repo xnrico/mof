@@ -24,7 +24,8 @@ interface ExchangeResult {
 export default function TrueLayerCallback() {
   const [params] = useSearchParams();
   const navigate = useNavigate();
-  const mofAccountId = Number(params.get('account_id'));
+  // TrueLayer returns account_id via the OAuth 'state' parameter
+  const mofAccountId = Number(params.get('state'));
   const code = params.get('code');
   const error = params.get('error');
 
@@ -32,7 +33,9 @@ export default function TrueLayerCallback() {
   const [linked, setLinked] = useState(false);
   const [linkError, setLinkError] = useState('');
 
-  const redirectUri = `${window.location.origin}/truelayer/callback?account_id=${mofAccountId}`;
+  // redirect_uri must match exactly what was registered in TrueLayer Console
+  // and what was sent in the auth request (no query params)
+  const redirectUri = `${window.location.origin}/truelayer/callback`;
 
   const exchangeMutation = useMutation({
     mutationFn: () =>

@@ -122,7 +122,11 @@ class TrueLayerClient:
     async def build_connection_auth_url(
         self, redirect_uri: str, account_id: int
     ) -> Optional[str]:
-        """Build the URL to redirect the user to for bank authorisation."""
+        """Build the URL to redirect the user to for bank authorisation.
+
+        account_id is passed via the OAuth 'state' parameter so the redirect_uri
+        stays clean and matches the registered URI in TrueLayer Console.
+        """
         client_id = await self._client_id()
         if not client_id:
             return None
@@ -134,6 +138,7 @@ class TrueLayerClient:
             "scope": _DATA_SCOPES,
             "redirect_uri": redirect_uri,
             "providers": providers,
+            "state": str(account_id),   # passed back unchanged in the callback
         })
         return f"{self._auth_base(sandbox)}/?{params}"
 
