@@ -62,8 +62,10 @@ async def update_provider_settings(
         # Skip blank values so an untouched password field doesn't wipe secrets.
         if value == "":
             continue
-        # Allow explicit clearing via a single space.
-        await ps.upsert(db, key, "" if value == " " else value)
+        # Allow explicit clearing via a single space; otherwise strip whitespace
+        # to prevent leading/trailing spaces breaking credentials.
+        cleaned = "" if value == " " else value.strip()
+        await ps.upsert(db, key, cleaned)
         updated.append(key)
 
     await db.commit()
