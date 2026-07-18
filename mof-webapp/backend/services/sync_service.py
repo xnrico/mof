@@ -68,8 +68,11 @@ class SyncService:
                 await self.db.commit()
                 return result
 
-            # Get last sync date
-            last_sync = integration_config.last_sync_at or datetime.now() - timedelta(days=30)
+            # Get last sync date. On the first sync there's no last_sync_at,
+            # so backfill SYNC_INITIAL_DAYS of history (providers cap this).
+            last_sync = integration_config.last_sync_at or (
+                datetime.now() - timedelta(days=settings.SYNC_INITIAL_DAYS)
+            )
 
             # Fetch transactions
             transactions = await integration.get_transactions(
@@ -131,11 +134,20 @@ class SyncService:
         except Exception as e:
             result["error"] = str(e)
 
+            # The failed operation may have left the session in a
+            # PendingRollbackError state; roll back before writing the error
+            # status, otherwise the commit below (and every subsequent account
+            # in sync_all_accounts, which shares this session) would also fail.
+            await self.db.rollback()
+
             # Update error status
             if integration_config:
-                integration_config.last_sync_status = "failed"
-                integration_config.last_error = str(e)
-                await self.db.commit()
+                try:
+                    integration_config.last_sync_status = "failed"
+                    integration_config.last_error = str(e)
+                    await self.db.commit()
+                except Exception:
+                    await self.db.rollback()
 
         return result
 

@@ -118,6 +118,11 @@ class TrueLayerIntegration(BaseIntegration):
         for txn in raw:
             try:
                 amount = float(txn.get("amount", 0))
+                # TrueLayer reports card purchases as positive amounts, whereas
+                # bank-account spending is negative. Negate card amounts so a
+                # purchase is an expense (negative) consistent with accounts.
+                if self.is_card:
+                    amount = -amount
                 ts = txn.get("timestamp", "")
                 txn_date = datetime.fromisoformat(ts.replace("Z", "+00:00"))
                 transactions.append(TransactionData(

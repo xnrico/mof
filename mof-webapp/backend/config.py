@@ -42,6 +42,10 @@ class Settings(BaseSettings):
 
     # Sync
     SYNC_SCHEDULE: str = "0 */6 * * *"
+    # How far back to pull transactions on the first sync of an account
+    # (subsequent syncs pull from the last successful sync). Providers cap
+    # this themselves — e.g. TrueLayer accounts ~6y, cards ~12mo.
+    SYNC_INITIAL_DAYS: int = 730
 
     # Server
     HOST: str = "0.0.0.0"
