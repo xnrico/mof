@@ -34,11 +34,11 @@ export default function Transactions() {
       <h1 className="text-3xl font-bold text-gray-900">Transactions</h1>
 
       {/* Filters */}
-      <div className="flex flex-wrap gap-3">
+      <div className="flex flex-col sm:flex-row flex-wrap gap-3">
         <select
           value={accountId}
           onChange={(e) => setAccountId(e.target.value === '' ? '' : Number(e.target.value))}
-          className="px-3 py-2 rounded-md border border-gray-300 text-sm bg-white"
+          className="w-full sm:w-auto px-3 py-2 rounded-md border border-gray-300 text-sm bg-white"
         >
           <option value="">All accounts</option>
           {(accounts ?? []).map((a) => (
@@ -48,7 +48,7 @@ export default function Transactions() {
         <select
           value={category}
           onChange={(e) => setCategory(e.target.value)}
-          className="px-3 py-2 rounded-md border border-gray-300 text-sm bg-white"
+          className="w-full sm:w-auto px-3 py-2 rounded-md border border-gray-300 text-sm bg-white"
         >
           <option value="">All categories</option>
           {CATEGORIES.map((c) => (
@@ -57,7 +57,7 @@ export default function Transactions() {
         </select>
       </div>
 
-      <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+      <div className="bg-white rounded-lg shadow-sm overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>

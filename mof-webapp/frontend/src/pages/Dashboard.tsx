@@ -96,9 +96,9 @@ export default function Dashboard() {
   return (
     <div className="px-4 py-6 space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Dashboard</h1>
         {users && users.length > 0 && (
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             {users.map((u) => (
               <button
                 key={u.id}

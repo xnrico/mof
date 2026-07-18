@@ -26,34 +26,33 @@ function App() {
         <div className="min-h-screen bg-gray-50">
           {/* Navigation */}
           <nav className="bg-white shadow-sm">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-              <div className="flex justify-between h-16">
-                <div className="flex">
-                  <div className="flex-shrink-0 flex items-center">
-                    <DollarSign className="h-8 w-8 text-blue-600" />
-                    <span className="ml-2 text-xl font-bold text-gray-900">
-                      Ministry of Finance
-                    </span>
-                  </div>
-                  <div className="ml-6 flex space-x-4 sm:space-x-8">
-                    {navItems.map(({ to, label, icon: Icon, end }) => (
-                      <NavLink
-                        key={to}
-                        to={to}
-                        end={end}
-                        className={({ isActive }) =>
-                          `inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium ${
-                            isActive
-                              ? 'border-blue-500 text-gray-900'
-                              : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
-                          }`
-                        }
-                      >
-                        <Icon className="h-4 w-4 mr-2" />
-                        <span className="hidden sm:inline">{label}</span>
-                      </NavLink>
-                    ))}
-                  </div>
+            <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+              <div className="flex items-center justify-between gap-2 h-16">
+                <div className="flex-shrink-0 flex items-center min-w-0">
+                  <DollarSign className="h-7 w-7 sm:h-8 sm:w-8 text-blue-600 flex-shrink-0" />
+                  <span className="ml-2 text-base sm:text-xl font-bold text-gray-900 truncate">
+                    <span className="hidden sm:inline">Ministry of Finance</span>
+                    <span className="sm:hidden">MoF</span>
+                  </span>
+                </div>
+                <div className="flex items-center gap-1 sm:gap-6 overflow-x-auto">
+                  {navItems.map(({ to, label, icon: Icon, end }) => (
+                    <NavLink
+                      key={to}
+                      to={to}
+                      end={end}
+                      className={({ isActive }) =>
+                        `inline-flex flex-col sm:flex-row items-center px-2 sm:px-1 py-1 sm:pt-1 border-b-2 text-xs sm:text-sm font-medium flex-shrink-0 ${
+                          isActive
+                            ? 'border-blue-500 text-gray-900'
+                            : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+                        }`
+                      }
+                    >
+                      <Icon className="h-5 w-5 sm:h-4 sm:w-4 sm:mr-2" />
+                      <span className="text-[10px] sm:text-sm">{label}</span>
+                    </NavLink>
+                  ))}
                 </div>
               </div>
             </div>

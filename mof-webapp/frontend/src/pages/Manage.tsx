@@ -34,7 +34,7 @@ function AccountForm({ initial, users, onSave, onCancel }: {
 
   return (
     <div className="space-y-3">
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
           <label className="block text-xs font-medium text-gray-600 mb-1">Name</label>
           <input className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
@@ -220,8 +220,8 @@ export default function Manage() {
 
   return (
     <div className="px-4 py-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold text-gray-900">Manage Accounts</h1>
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Manage Accounts</h1>
         <button onClick={() => setShowAdd(true)}
           className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700">
           <Plus className="h-4 w-4" /> Add Account

@@ -92,8 +92,8 @@ export default function Accounts() {
 
   return (
     <div className="px-4 py-6 space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold text-gray-900">Accounts</h1>
+      <div className="flex items-start justify-between flex-wrap gap-3">
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Accounts</h1>
         <div className="flex flex-col items-end gap-1">
           <div className="flex gap-2">
             <button
@@ -131,7 +131,7 @@ export default function Accounts() {
       {isLoading ? (
         <p className="text-gray-500">Loading…</p>
       ) : (
-        <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+        <div className="bg-white rounded-lg shadow-sm overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
