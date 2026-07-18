@@ -25,6 +25,9 @@ class TrueLayerIntegration(BaseIntegration):
         self._tl_client = credentials.get("_client")
         # Will be set to a fresh token if refresh occurs
         self._effective_token: Optional[str] = self.access_token
+        # Records why a transaction fetch failed (e.g. bank consent 403), so
+        # the sync can surface it even though we still update the balance.
+        self.last_txn_error: Optional[str] = None
 
     async def initialize(self) -> bool:
         if not self.tl_account_id:
@@ -107,12 +110,18 @@ class TrueLayerIntegration(BaseIntegration):
             if self.is_card
             else self._tl_client.get_transactions
         )
-        raw = await fetch(
-            self._effective_token,
-            account_id,
-            start_date.strftime("%Y-%m-%dT%H:%M:%S"),
-            end_date.strftime("%Y-%m-%dT%H:%M:%S"),
-        )
+        try:
+            raw = await fetch(
+                self._effective_token,
+                account_id,
+                start_date.strftime("%Y-%m-%dT%H:%M:%S"),
+                end_date.strftime("%Y-%m-%dT%H:%M:%S"),
+            )
+        except Exception as e:
+            # Bank/provider refused (commonly a 403 consent issue). Record it so
+            # the sync reports a clear error; balance can still be updated.
+            self.last_txn_error = str(e)
+            return []
 
         transactions = []
         for txn in raw:

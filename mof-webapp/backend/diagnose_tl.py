@@ -47,10 +47,7 @@ async def run():
             print(f"    has_access_token={bool(cfg.access_token)} "
                   f"has_refresh_token={bool(cfg.refresh_token)} item_id={cfg.item_id!r}")
 
-            if a.provider != IntegrationProvider.TRUELAYER:
-                continue
-
-            # Probe TrueLayer live
+            # Probe any provider live (TrueLayer, Trading212, ...)
             svc = SyncService(db)
             creds = await svc._build_credentials(a.provider, cfg)
             integ = IntegrationFactory.create(a.provider.value, creds)
@@ -68,6 +65,9 @@ async def run():
             txns = await integ.get_transactions(a.external_account_id, start_date=start,
                                                 end_date=datetime.now())
             print(f"    get_transactions(730d) -> {len(txns)} txn(s)")
+            err = getattr(integ, "last_txn_error", None)
+            if err:
+                print(f"    ✗ transaction fetch error: {err}")
             if txns:
                 t = txns[0]
                 print(f"      e.g. {t.date} {t.description!r} {t.amount}")

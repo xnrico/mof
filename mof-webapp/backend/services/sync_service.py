@@ -129,16 +129,27 @@ class SyncService:
             # so the next sync doesn't start with an expired token.
             self._persist_refreshed_tokens(integration, integration_config)
 
+            # If transactions couldn't be fetched (e.g. bank consent 403) but
+            # balance did update, report a partial sync with the reason rather
+            # than a misleading "success".
+            txn_error = getattr(integration, "last_txn_error", None)
+
             # Update sync status
             account.last_synced_at = datetime.now()
             integration_config.last_sync_at = datetime.now()
-            integration_config.last_sync_status = "success"
-            integration_config.last_error = None
+            if txn_error:
+                integration_config.last_sync_status = "partial"
+                integration_config.last_error = f"Transactions unavailable: {txn_error}"
+                result["error"] = integration_config.last_error
+            else:
+                integration_config.last_sync_status = "success"
+                integration_config.last_error = None
 
             await self.db.commit()
             await integration.close()
 
-            result["success"] = True
+            # Balance updated; only call it a full success when txns came too.
+            result["success"] = txn_error is None
 
         except Exception as e:
             result["error"] = str(e)

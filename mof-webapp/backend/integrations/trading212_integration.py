@@ -1,8 +1,15 @@
 from typing import List, Dict, Any, Optional
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import base64
 import httpx
 from .base import BaseIntegration, TransactionData, AccountData
+
+
+def _naive_utc(dt: datetime) -> datetime:
+    """Convert a tz-aware datetime to naive UTC (matches naive start/end)."""
+    if dt.tzinfo is not None:
+        dt = dt.astimezone(timezone.utc).replace(tzinfo=None)
+    return dt
 
 
 class Trading212Integration(BaseIntegration):
@@ -115,13 +122,16 @@ class Trading212Integration(BaseIntegration):
                 )
 
                 if orders_response.status_code == 200:
-                    orders = orders_response.json()
+                    payload = orders_response.json()
+                    # T212 returns a paginated {"items": [...]} object; older
+                    # accounts/endpoints may return a bare list. Handle both.
+                    orders = payload.get("items", []) if isinstance(payload, dict) else payload
 
                     for order in orders:
                         # Parse datetime
-                        created_at = datetime.fromisoformat(
+                        created_at = _naive_utc(datetime.fromisoformat(
                             order.get("dateCreated", "").replace("Z", "+00:00")
-                        )
+                        ))
 
                         if start_date <= created_at <= end_date:
                             filled_quantity = float(order.get("filledQuantity", 0))
@@ -155,9 +165,9 @@ class Trading212Integration(BaseIntegration):
                     dividends = dividends_response.json()
 
                     for dividend in dividends.get("items", []):
-                        paid_on = datetime.fromisoformat(
+                        paid_on = _naive_utc(datetime.fromisoformat(
                             dividend.get("paidOn", "").replace("Z", "+00:00")
-                        )
+                        ))
 
                         if start_date <= paid_on <= end_date:
                             transactions.append(TransactionData(

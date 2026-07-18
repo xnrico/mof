@@ -259,11 +259,13 @@ class TrueLayerClient:
                 )
                 if r.status_code != 200:
                     print(f"TrueLayer get_transactions failed: {r.status_code} {r.text[:200]}")
-                    return []
+                    raise RuntimeError(f"transactions HTTP {r.status_code}: {r.text[:150]}")
                 return r.json().get("results", [])
+        except RuntimeError:
+            raise
         except Exception as e:
             print(f"TrueLayer get_transactions exception: {e}")
-            return []
+            raise RuntimeError(f"transactions error: {e}")
 
     # ---- Card endpoints (credit cards are a separate TrueLayer resource) ----
 
@@ -317,8 +319,10 @@ class TrueLayerClient:
                 )
                 if r.status_code != 200:
                     print(f"TrueLayer get_card_transactions failed: {r.status_code} {r.text[:200]}")
-                    return []
+                    raise RuntimeError(f"card transactions HTTP {r.status_code}: {r.text[:150]}")
                 return r.json().get("results", [])
+        except RuntimeError:
+            raise
         except Exception as e:
             print(f"TrueLayer get_card_transactions exception: {e}")
-            return []
+            raise RuntimeError(f"card transactions error: {e}")
