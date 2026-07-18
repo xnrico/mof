@@ -53,7 +53,7 @@ export default function Accounts() {
   });
 
   const syncAllMutation = useMutation({
-    mutationFn: () => api.syncAllAccounts() as Promise<SyncResult[]>,
+    mutationFn: (full: boolean = false) => api.syncAllAccounts(full) as Promise<SyncResult[]>,
     onSuccess: (results) => {
       const ok = results.filter((r) => r.success).length;
       const failed = results.length - ok;
@@ -95,15 +95,30 @@ export default function Accounts() {
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold text-gray-900">Accounts</h1>
         <div className="flex flex-col items-end gap-1">
-          <button
-            onClick={() => { setSyncAllMsg(''); syncAllMutation.mutate(); }}
-            disabled={syncAllMutation.isPending}
-            title="Sync all accounts now"
-            className="inline-flex items-center gap-2 px-4 py-2 text-sm rounded-md bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <RefreshCcw className={`h-4 w-4 ${syncAllMutation.isPending ? 'animate-spin' : ''}`} />
-            {syncAllMutation.isPending ? 'Syncing all…' : 'Sync All'}
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={() => { setSyncAllMsg(''); syncAllMutation.mutate(false); }}
+              disabled={syncAllMutation.isPending}
+              title="Sync all accounts now"
+              className="inline-flex items-center gap-2 px-4 py-2 text-sm rounded-md bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <RefreshCcw className={`h-4 w-4 ${syncAllMutation.isPending ? 'animate-spin' : ''}`} />
+              {syncAllMutation.isPending ? 'Syncing all…' : 'Sync All'}
+            </button>
+            <button
+              onClick={() => {
+                if (window.confirm('Full re-sync re-pulls full history for every account and corrects existing transactions (e.g. card signs). Continue?')) {
+                  setSyncAllMsg(''); syncAllMutation.mutate(true);
+                }
+              }}
+              disabled={syncAllMutation.isPending}
+              title="Re-pull full history and correct existing transactions"
+              className="inline-flex items-center gap-2 px-4 py-2 text-sm rounded-md border border-blue-600 text-blue-700 hover:bg-blue-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <RefreshCcw className={`h-4 w-4 ${syncAllMutation.isPending ? 'animate-spin' : ''}`} />
+              Full re-sync
+            </button>
+          </div>
           {syncAllMsg && (
             <span className={`text-xs ${syncAllMsg.startsWith('✓') ? 'text-green-600' : 'text-red-600'}`}>
               {syncAllMsg}

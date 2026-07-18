@@ -11,11 +11,14 @@ const PROVIDERS = ['TrueLayer', 'Trading212', 'Plaid', 'GoCardless', 'IBKR', 'Ma
 
 interface AccountFormData {
   name: string; currency: string; account_type: string;
-  provider: string; user_id: number;
+  provider: string; user_id: number; is_shared: boolean;
 }
 
+// Sentinel select value for the shared ("Daixu") pool.
+const SHARED_OWNER = 'shared';
+
 function AccountForm({ initial, users, onSave, onCancel }: {
-  initial?: Partial<AccountFormData & { id: number }>;
+  initial?: Partial<AccountFormData & { id: number; is_shared: boolean }>;
   users: { id: number; name: string }[];
   onSave: (d: AccountFormData & { id?: number }) => void;
   onCancel: () => void;
@@ -26,6 +29,7 @@ function AccountForm({ initial, users, onSave, onCancel }: {
     account_type: initial?.account_type ?? 'Checking',
     provider: initial?.provider ?? 'TrueLayer',
     user_id: initial?.user_id ?? users[0]?.id ?? 1,
+    is_shared: initial?.is_shared ?? false,
   });
 
   return (
@@ -39,8 +43,17 @@ function AccountForm({ initial, users, onSave, onCancel }: {
         <div>
           <label className="block text-xs font-medium text-gray-600 mb-1">Owner</label>
           <select className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white"
-            value={form.user_id} onChange={e => setForm(f => ({ ...f, user_id: Number(e.target.value) }))}>
+            value={form.is_shared ? SHARED_OWNER : form.user_id}
+            onChange={e => {
+              const v = e.target.value;
+              if (v === SHARED_OWNER) {
+                setForm(f => ({ ...f, is_shared: true }));
+              } else {
+                setForm(f => ({ ...f, is_shared: false, user_id: Number(v) }));
+              }
+            }}>
             {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+            <option value={SHARED_OWNER}>Daixu (Shared)</option>
           </select>
         </div>
         <div>
@@ -243,7 +256,9 @@ export default function Manage() {
                       ))}
                     </div>
                     <div className="text-sm text-gray-500 mt-0.5">
-                      {userName(account.user_id)}
+                      {account.is_shared
+                        ? <span className="text-purple-600 font-medium">Daixu (Shared)</span>
+                        : userName(account.user_id)}
                       {account.current_balance != null && (
                         <span className="ml-3 font-medium text-gray-700">{formatCurrency(account.current_balance, account.currency)}</span>
                       )}

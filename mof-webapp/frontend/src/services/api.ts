@@ -101,13 +101,13 @@ export const api = {
   },
 
   // Sync
-  syncAccount: async (accountId: number) => {
-    const response = await client.post(`/sync/account/${accountId}`);
+  syncAccount: async (accountId: number, full = false) => {
+    const response = await client.post(`/sync/account/${accountId}`, null, { params: { full } });
     return response.data;
   },
 
-  syncAllAccounts: async () => {
-    const response = await client.post('/sync/all');
+  syncAllAccounts: async (full = false) => {
+    const response = await client.post('/sync/all', null, { params: { full } });
     return response.data;
   },
 
@@ -176,7 +176,7 @@ export const api = {
   // Account management
   updateAccount: async (accountId: number, data: {
     name?: string; account_type?: string; currency?: string;
-    provider?: string; is_active?: boolean;
+    provider?: string; is_active?: boolean; is_shared?: boolean;
   }) => {
     const response = await client.put(`/accounts/${accountId}`, data);
     return response.data;
@@ -234,6 +234,7 @@ export interface Account {
   current_balance: number | null;
   last_synced_at: string | null;
   is_active: boolean;
+  is_shared: boolean;
 }
 
 export interface Transaction {
