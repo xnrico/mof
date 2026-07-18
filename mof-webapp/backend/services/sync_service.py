@@ -1,7 +1,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from typing import List, Optional
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from models.models import (
     Account,
     Transaction,
@@ -102,7 +102,7 @@ class SyncService:
                         amount=txn_data.amount,
                         currency=self._map_currency(txn_data.currency, account.currency),
                         category=self._map_category(txn_data.category),
-                        transaction_date=txn_data.date,
+                        transaction_date=self._naive_utc(txn_data.date),
                         merchant_name=txn_data.merchant_name,
                     )
                     self.db.add(new_txn)
@@ -247,6 +247,21 @@ class SyncService:
             credentials["env"]        = kp_creds.get("env") or await provider_settings.get_effective(self.db, "TRADING212_ENV", settings.TRADING212_ENV)
 
         return credentials
+
+    @staticmethod
+    def _naive_utc(dt: Optional[datetime]) -> Optional[datetime]:
+        """Coerce a datetime to naive UTC.
+
+        The `transactions.transaction_date` column is TIMESTAMP WITHOUT TIME
+        ZONE, so tz-aware values (e.g. TrueLayer's ISO timestamps) must be
+        converted to UTC and stripped of tzinfo before insert — otherwise
+        asyncpg raises "can't subtract offset-naive and offset-aware datetimes".
+        """
+        if dt is None:
+            return None
+        if dt.tzinfo is not None:
+            return dt.astimezone(timezone.utc).replace(tzinfo=None)
+        return dt
 
     def _map_currency(self, currency_str: Optional[str], default: Currency) -> Currency:
         """Coerce a provider currency string into the Currency enum.
