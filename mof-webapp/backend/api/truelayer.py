@@ -83,14 +83,16 @@ async def exchange_code(req: ExchangeRequest, db: AsyncSession = Depends(get_db)
     cards = await client.get_cards(access_token)
     for c in cards:
         bal = await client.get_card_balance(access_token, c["account_id"])
+        # For cards, `current` is the outstanding balance owed — show it as a
+        # negative liability to match how it appears on the Accounts tab.
+        card_current = bal.get("current") if bal else None
         enriched.append({
             "account_id": c["account_id"],
             "display_name": c.get("display_name") or c.get("card_network", "Credit Card"),
             "account_type": c.get("card_type", "CREDIT_CARD"),
             "currency": c.get("currency", "GBP"),
             "account_number": {"number": c.get("partial_card_number", "")},
-            # For cards, `current` is the outstanding balance owed.
-            "balance": bal.get("current") if bal else None,
+            "balance": -card_current if card_current is not None else None,
             "available": bal.get("available") if bal else None,
             "is_card": True,
         })

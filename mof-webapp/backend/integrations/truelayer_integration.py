@@ -141,4 +141,8 @@ class TrueLayerIntegration(BaseIntegration):
             bal = await self._tl_client.get_card_balance(self._effective_token, account_id)
         else:
             bal = await self._tl_client.get_balance(self._effective_token, account_id)
-        return float(bal["current"]) if bal and bal.get("current") is not None else None
+        if not bal or bal.get("current") is None:
+            return None
+        current = float(bal["current"])
+        # Credit-card `current` is the amount owed; show it as a negative liability.
+        return -current if self.is_card else current
