@@ -27,10 +27,11 @@ class ExchangeRequest(BaseModel):
 
 class SetAccountRequest(BaseModel):
     mof_account_id: int
-    tl_account_id: str    # TrueLayer account_id
+    tl_account_id: str    # TrueLayer account_id (or card_id)
     access_token: str
     refresh_token: str
     token_expires_in: Optional[int] = 3600
+    is_card: bool = False  # True when linking a credit card resource
 
 
 @router.get("/link")
@@ -60,7 +61,7 @@ async def exchange_code(req: ExchangeRequest, db: AsyncSession = Depends(get_db)
     refresh_token = tokens.get("refresh_token", "")
     expires_in = tokens.get("expires_in", 3600)
 
-    # Fetch accessible accounts with this token
+    # Fetch accessible bank accounts with this token
     accounts = await client.get_accounts(access_token)
 
     # Enrich with balances
@@ -75,6 +76,23 @@ async def exchange_code(req: ExchangeRequest, db: AsyncSession = Depends(get_db)
             "account_number": a.get("account_number", {}),
             "balance": bal.get("current") if bal else None,
             "available": bal.get("available") if bal else None,
+            "is_card": False,
+        })
+
+    # Credit cards are a separate TrueLayer resource — fetch and merge them.
+    cards = await client.get_cards(access_token)
+    for c in cards:
+        bal = await client.get_card_balance(access_token, c["account_id"])
+        enriched.append({
+            "account_id": c["account_id"],
+            "display_name": c.get("display_name") or c.get("card_network", "Credit Card"),
+            "account_type": c.get("card_type", "CREDIT_CARD"),
+            "currency": c.get("currency", "GBP"),
+            "account_number": {"number": c.get("partial_card_number", "")},
+            # For cards, `current` is the outstanding balance owed.
+            "balance": bal.get("current") if bal else None,
+            "available": bal.get("available") if bal else None,
+            "is_card": True,
         })
 
     return {
@@ -95,6 +113,7 @@ async def set_account(req: SetAccountRequest, db: AsyncSession = Depends(get_db)
     import json
     from datetime import datetime, timezone, timedelta
     expiry = (datetime.now(timezone.utc) + timedelta(seconds=req.token_expires_in or 3600)).isoformat()
+    config_data = json.dumps({"token_expiry": expiry, "is_card": req.is_card})
 
     stmt = select(IntegrationConfig).where(IntegrationConfig.account_id == req.mof_account_id)
     config = (await db.execute(stmt)).scalar_one_or_none()
@@ -102,7 +121,7 @@ async def set_account(req: SetAccountRequest, db: AsyncSession = Depends(get_db)
         config.access_token = req.access_token
         config.refresh_token = req.refresh_token
         config.item_id = req.tl_account_id
-        config.config_data = json.dumps({"token_expiry": expiry})
+        config.config_data = config_data
         config.is_active = True
     else:
         db.add(IntegrationConfig(
@@ -111,7 +130,7 @@ async def set_account(req: SetAccountRequest, db: AsyncSession = Depends(get_db)
             access_token=req.access_token,
             refresh_token=req.refresh_token,
             item_id=req.tl_account_id,
-            config_data=json.dumps({"token_expiry": expiry}),
+            config_data=config_data,
             is_active=True,
         ))
 

@@ -167,6 +167,7 @@ export const api = {
     access_token: string;
     refresh_token: string;
     token_expires_in?: number;
+    is_card?: boolean;
   }) => {
     const response = await client.post('/truelayer/set-account', data);
     return response.data;

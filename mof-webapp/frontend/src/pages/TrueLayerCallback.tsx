@@ -12,6 +12,7 @@ interface TLAccount {
   balance: number | null;
   available: number | null;
   account_number: { iban?: string; number?: string; sort_code?: string };
+  is_card: boolean;
 }
 
 interface ExchangeResult {
@@ -53,6 +54,7 @@ export default function TrueLayerCallback() {
         access_token: exchangeResult!.access_token,
         refresh_token: exchangeResult!.refresh_token,
         token_expires_in: exchangeResult!.expires_in,
+        is_card: acc.is_card,
       }),
     onSuccess: () => setLinked(true),
     onError: (e: unknown) =>
@@ -145,7 +147,14 @@ export default function TrueLayerCallback() {
                 className="flex items-center justify-between border border-gray-200 rounded-lg p-4 hover:border-blue-300"
               >
                 <div>
-                  <div className="font-medium text-gray-900">{a.display_name}</div>
+                  <div className="font-medium text-gray-900 flex items-center gap-2">
+                    {a.display_name}
+                    {a.is_card && (
+                      <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-purple-100 text-purple-700">
+                        CARD
+                      </span>
+                    )}
+                  </div>
                   <div className="text-xs text-gray-400">{a.account_type}</div>
                   {a.account_number?.iban && (
                     <div className="text-xs text-gray-400 font-mono">{a.account_number.iban}</div>

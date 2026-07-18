@@ -264,3 +264,61 @@ class TrueLayerClient:
         except Exception as e:
             print(f"TrueLayer get_transactions exception: {e}")
             return []
+
+    # ---- Card endpoints (credit cards are a separate TrueLayer resource) ----
+
+    async def get_cards(self, user_access_token: str) -> list:
+        """Fetch credit cards accessible with this user access token."""
+        sandbox = await self._is_sandbox()
+        try:
+            async with httpx.AsyncClient(timeout=15) as http:
+                r = await http.get(
+                    f"{self._api_base(sandbox)}/data/v1/cards",
+                    headers=self._headers(user_access_token),
+                )
+                if r.status_code != 200:
+                    print(f"TrueLayer get_cards failed: {r.status_code} {r.text[:200]}")
+                    return []
+                return r.json().get("results", [])
+        except Exception as e:
+            print(f"TrueLayer get_cards exception: {e}")
+            return []
+
+    async def get_card_balance(
+        self, user_access_token: str, account_id: str
+    ) -> Optional[dict]:
+        sandbox = await self._is_sandbox()
+        try:
+            async with httpx.AsyncClient(timeout=15) as http:
+                r = await http.get(
+                    f"{self._api_base(sandbox)}/data/v1/cards/{account_id}/balance",
+                    headers=self._headers(user_access_token),
+                )
+                results = r.json().get("results", []) if r.status_code == 200 else []
+                return results[0] if results else None
+        except Exception as e:
+            print(f"TrueLayer get_card_balance exception: {e}")
+            return None
+
+    async def get_card_transactions(
+        self,
+        user_access_token: str,
+        account_id: str,
+        date_from: str,
+        date_to: str,
+    ) -> list:
+        sandbox = await self._is_sandbox()
+        try:
+            async with httpx.AsyncClient(timeout=30) as http:
+                r = await http.get(
+                    f"{self._api_base(sandbox)}/data/v1/cards/{account_id}/transactions",
+                    headers=self._headers(user_access_token),
+                    params={"from": date_from, "to": date_to},
+                )
+                if r.status_code != 200:
+                    print(f"TrueLayer get_card_transactions failed: {r.status_code} {r.text[:200]}")
+                    return []
+                return r.json().get("results", [])
+        except Exception as e:
+            print(f"TrueLayer get_card_transactions exception: {e}")
+            return []

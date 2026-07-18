@@ -21,6 +21,7 @@ class TrueLayerIntegration(BaseIntegration):
         self.refresh_token: Optional[str] = credentials.get("refresh_token")
         self.tl_account_id: Optional[str] = credentials.get("tl_account_id")
         self.token_expiry: Optional[str] = credentials.get("token_expiry")
+        self.is_card: bool = bool(credentials.get("is_card", False))
         self._tl_client = credentials.get("_client")
         # Will be set to a fresh token if refresh occurs
         self._effective_token: Optional[str] = self.access_token
@@ -101,7 +102,12 @@ class TrueLayerIntegration(BaseIntegration):
         if not end_date:
             end_date = datetime.now()
 
-        raw = await self._tl_client.get_transactions(
+        fetch = (
+            self._tl_client.get_card_transactions
+            if self.is_card
+            else self._tl_client.get_transactions
+        )
+        raw = await fetch(
             self._effective_token,
             account_id,
             start_date.strftime("%Y-%m-%dT%H:%M:%S"),
@@ -131,5 +137,8 @@ class TrueLayerIntegration(BaseIntegration):
     async def get_balance(self, account_id: str) -> Optional[float]:
         if not self._tl_client or not self._effective_token:
             return None
-        bal = await self._tl_client.get_balance(self._effective_token, account_id)
-        return float(bal["current"]) if bal else None
+        if self.is_card:
+            bal = await self._tl_client.get_card_balance(self._effective_token, account_id)
+        else:
+            bal = await self._tl_client.get_balance(self._effective_token, account_id)
+        return float(bal["current"]) if bal and bal.get("current") is not None else None

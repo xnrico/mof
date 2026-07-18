@@ -231,6 +231,7 @@ class SyncService:
             config_data = _json.loads(config.config_data or "{}") if config.config_data else {}
             credentials["tl_account_id"] = config.item_id
             credentials["token_expiry"]  = config_data.get("token_expiry")
+            credentials["is_card"]       = config_data.get("is_card", False)
             # TrueLayerClient reads TRUELAYER_* from DB; key-pair overrides
             # are injected by storing them in app_settings via the key-pair flow.
             credentials["_client"] = TrueLayerClient(self.db)
