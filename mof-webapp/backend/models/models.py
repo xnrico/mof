@@ -79,6 +79,9 @@ class Account(Base):
 
     # Status
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    # Shared ("Daixu") accounts belong to the household pool rather than one
+    # person; user_id still records who set it up.
+    is_shared: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     # Relationships

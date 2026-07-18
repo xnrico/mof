@@ -17,6 +17,7 @@ class AccountCreate(BaseModel):
     account_type: str
     currency: str
     provider: str
+    is_shared: bool = False
 
 
 class IntegrationConfigCreate(BaseModel):
@@ -38,6 +39,7 @@ class AccountResponse(BaseModel):
     current_balance: float | None
     last_synced_at: datetime | None
     is_active: bool
+    is_shared: bool
 
     class Config:
         from_attributes = True
@@ -51,7 +53,8 @@ async def create_account(account: AccountCreate, db: AsyncSession = Depends(get_
         name=account.name,
         account_type=AccountType(account.account_type),
         currency=Currency(account.currency),
-        provider=IntegrationProvider(account.provider)
+        provider=IntegrationProvider(account.provider),
+        is_shared=account.is_shared,
     )
     db.add(db_account)
     await db.commit()
@@ -131,6 +134,7 @@ class AccountUpdate(BaseModel):
     currency: Optional[str] = None
     provider: Optional[str] = None
     is_active: Optional[bool] = None
+    is_shared: Optional[bool] = None
 
 
 @router.put("/{account_id}", response_model=AccountResponse)
@@ -150,6 +154,8 @@ async def update_account(account_id: int, update: AccountUpdate, db: AsyncSessio
         account.provider = IntegrationProvider(update.provider)
     if update.is_active is not None:
         account.is_active = update.is_active
+    if update.is_shared is not None:
+        account.is_shared = update.is_shared
 
     await db.commit()
     await db.refresh(account)

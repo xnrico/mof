@@ -113,6 +113,13 @@ async def run():
         """))
         print("  integration_configs.key_pair_id column: OK")
 
+        # is_shared flag on accounts (Daixu shared pool) — idempotent
+        await conn.execute(text("""
+            ALTER TABLE accounts
+            ADD COLUMN IF NOT EXISTS is_shared BOOLEAN NOT NULL DEFAULT FALSE
+        """))
+        print("  accounts.is_shared column: OK")
+
     await engine_schema.dispose()
     print("\nMigration complete.")
 

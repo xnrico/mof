@@ -22,8 +22,13 @@ class SyncService:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def sync_account(self, account_id: int) -> dict:
-        """Sync transactions for a specific account"""
+    async def sync_account(self, account_id: int, full: bool = False) -> dict:
+        """Sync transactions for a specific account.
+
+        When ``full`` is True, ignore last_sync_at and re-pull the whole
+        backfill window — used to backfill history or correct existing
+        transactions (e.g. after a sign-convention fix).
+        """
         result = {
             "account_id": account_id,
             "success": False,
@@ -68,11 +73,15 @@ class SyncService:
                 await self.db.commit()
                 return result
 
-            # Get last sync date. On the first sync there's no last_sync_at,
-            # so backfill SYNC_INITIAL_DAYS of history (providers cap this).
-            last_sync = integration_config.last_sync_at or (
-                datetime.now() - timedelta(days=settings.SYNC_INITIAL_DAYS)
-            )
+            # Get last sync date. On the first sync (or a full re-sync) there's
+            # no usable last_sync_at, so backfill SYNC_INITIAL_DAYS of history
+            # (providers cap this). A full re-sync re-pulls the whole window so
+            # existing transactions get updated (e.g. corrected signs).
+            backfill_start = datetime.now() - timedelta(days=settings.SYNC_INITIAL_DAYS)
+            if full or not integration_config.last_sync_at:
+                last_sync = backfill_start
+            else:
+                last_sync = integration_config.last_sync_at
 
             # Fetch transactions
             transactions = await integration.get_transactions(
@@ -151,8 +160,8 @@ class SyncService:
 
         return result
 
-    async def sync_all_accounts(self) -> List[dict]:
-        """Sync all active accounts"""
+    async def sync_all_accounts(self, full: bool = False) -> List[dict]:
+        """Sync all active accounts. See sync_account for ``full``."""
         # Get all active accounts with integrations
         stmt = select(Account).where(
             Account.is_active == True,
@@ -163,7 +172,7 @@ class SyncService:
 
         results = []
         for account in accounts:
-            sync_result = await self.sync_account(account.id)
+            sync_result = await self.sync_account(account.id, full=full)
             results.append(sync_result)
 
         return results

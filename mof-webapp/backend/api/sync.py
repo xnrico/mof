@@ -21,22 +21,28 @@ class SyncResult(BaseModel):
 async def sync_account(
     account_id: int,
     background_tasks: BackgroundTasks,
+    full: bool = False,
     db: AsyncSession = Depends(get_db)
 ):
-    """Trigger sync for a specific account"""
+    """Trigger sync for a specific account.
+
+    Pass ?full=true to ignore the last sync time and re-pull the full
+    backfill window (backfills history / corrects existing transactions).
+    """
     sync_service = SyncService(db)
-    result = await sync_service.sync_account(account_id)
+    result = await sync_service.sync_account(account_id, full=full)
     return result
 
 
 @router.post("/all", response_model=List[SyncResult])
 async def sync_all_accounts(
     background_tasks: BackgroundTasks,
+    full: bool = False,
     db: AsyncSession = Depends(get_db)
 ):
-    """Trigger sync for all accounts"""
+    """Trigger sync for all accounts. Pass ?full=true for a full re-pull."""
     sync_service = SyncService(db)
-    results = await sync_service.sync_all_accounts()
+    results = await sync_service.sync_all_accounts(full=full)
     return results
 
 
