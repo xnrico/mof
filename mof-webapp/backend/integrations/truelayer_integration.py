@@ -37,16 +37,19 @@ class TrueLayerIntegration(BaseIntegration):
             return False
 
         # Check if token is expired and refresh if needed
+        expired = False
         if self.token_expiry:
             try:
                 expiry = datetime.fromisoformat(self.token_expiry)
                 if expiry.tzinfo is None:
                     expiry = expiry.replace(tzinfo=timezone.utc)
-                if datetime.now(timezone.utc) >= expiry - timedelta(minutes=5):
-                    if not await self._refresh():
-                        return False
+                expired = datetime.now(timezone.utc) >= expiry - timedelta(minutes=5)
             except Exception:
-                pass  # If expiry parsing fails, try with current token
+                # If expiry parsing fails, proactively refresh to be safe.
+                expired = True
+
+        if expired:
+            return await self._refresh()
 
         return True
 
@@ -55,13 +58,17 @@ class TrueLayerIntegration(BaseIntegration):
         if not self.refresh_token:
             print("TrueLayer: no refresh token available")
             return False
-        tokens = await self._tl_client.refresh_access_token(self.refresh_token)
-        if not tokens:
+        tokens = await self._tl_client.refresh_user_token(self.refresh_token)
+        if not tokens or not tokens.get("access_token"):
             print("TrueLayer: token refresh failed — user needs to re-link")
             return False
         self._effective_token = tokens["access_token"]
-        # Caller (SyncService) is responsible for persisting the new token
-        self.credentials["_new_access_token"] = self._effective_token
+        # Expose the refreshed credentials so SyncService can persist them.
+        # TrueLayer may or may not rotate the refresh token; keep the old one
+        # if a new one isn't returned.
+        self.credentials["_new_access_token"] = tokens["access_token"]
+        self.credentials["_new_refresh_token"] = tokens.get("refresh_token") or self.refresh_token
+        self.credentials["_new_expires_in"] = tokens.get("expires_in", 3600)
         return True
 
     async def get_accounts(self) -> List[AccountData]:

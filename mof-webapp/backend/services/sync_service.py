@@ -113,6 +113,10 @@ class SyncService:
             if balance is not None:
                 account.current_balance = balance
 
+            # Persist any refreshed tokens (e.g. TrueLayer) back to the config
+            # so the next sync doesn't start with an expired token.
+            self._persist_refreshed_tokens(integration, integration_config)
+
             # Update sync status
             account.last_synced_at = datetime.now()
             integration_config.last_sync_at = datetime.now()
@@ -151,6 +155,31 @@ class SyncService:
             results.append(sync_result)
 
         return results
+
+    def _persist_refreshed_tokens(self, integration, config: IntegrationConfig) -> None:
+        """Write back any tokens an integration refreshed during this sync.
+
+        Integrations expose refreshed credentials via the shared credentials
+        dict (keys prefixed with `_new_`). Currently only TrueLayer rotates
+        tokens mid-sync.
+        """
+        creds = getattr(integration, "credentials", None) or {}
+        new_access = creds.get("_new_access_token")
+        if not new_access:
+            return
+
+        config.access_token = new_access
+        new_refresh = creds.get("_new_refresh_token")
+        if new_refresh:
+            config.refresh_token = new_refresh
+
+        expires_in = creds.get("_new_expires_in")
+        if expires_in:
+            from datetime import timezone
+            expiry = (datetime.now(timezone.utc) + timedelta(seconds=int(expires_in))).isoformat()
+            existing = json.loads(config.config_data or "{}") if config.config_data else {}
+            existing["token_expiry"] = expiry
+            config.config_data = json.dumps(existing)
 
     async def _build_credentials(self, provider: IntegrationProvider, config: IntegrationConfig) -> dict:
         """Build credentials dictionary for integration.

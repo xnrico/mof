@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.ext.asyncio import AsyncSession
 from contextlib import asynccontextmanager
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from apscheduler.triggers.cron import CronTrigger
+from apscheduler.triggers.interval import IntervalTrigger
 
 from config import settings
 from models.database import init_db, get_db
@@ -20,21 +20,25 @@ async def lifespan(app: FastAPI):
     # Startup
     await init_db()
 
-    # Start scheduler for periodic syncing
-    # scheduler.add_job(
-    #     sync_all_accounts_job,
-    #     CronTrigger.from_crontab(settings.SYNC_SCHEDULE),
-    #     id="sync_all_accounts"
-    # )
-    # scheduler.start()
+    # Start scheduler for periodic syncing — every 5 minutes in the background
+    scheduler.add_job(
+        sync_all_accounts_job,
+        IntervalTrigger(minutes=5),
+        id="sync_all_accounts",
+        max_instances=1,          # don't overlap runs if one is slow
+        coalesce=True,            # collapse missed runs into one
+        replace_existing=True,
+    )
+    scheduler.start()
 
     print("🚀 Ministry of Finance API started")
+    print("⏱️  Auto-sync scheduled every 5 minutes")
     print(f"📊 Database: {settings.DATABASE_URL.split('@')[1] if '@' in settings.DATABASE_URL else 'configured'}")
 
     yield
 
     # Shutdown
-    # scheduler.shutdown()
+    scheduler.shutdown()
     print("👋 Ministry of Finance API shutting down")
 
 

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw, RefreshCcw } from 'lucide-react';
 import { api, formatCurrency, Account, SyncResult } from '../services/api';
 
 function ProviderBadge({ provider }: { provider: string }) {
@@ -23,9 +23,13 @@ export default function Accounts() {
   const [messages, setMessages] = useState<Record<number, string>>({});
   const [cooldowns, setCooldowns] = useState<Record<number, number>>({}); // accountId -> expiry timestamp
 
+  const [syncAllMsg, setSyncAllMsg] = useState('');
+
   const { data: accounts, isLoading } = useQuery<Account[]>({
     queryKey: ['accounts', 'all'],
     queryFn: () => api.getAccounts(),
+    // Pick up balance/last-synced updates from the 5-minute background sync.
+    refetchInterval: 60_000,
   });
 
   const syncMutation = useMutation({
@@ -48,6 +52,33 @@ export default function Accounts() {
     },
   });
 
+  const syncAllMutation = useMutation({
+    mutationFn: () => api.syncAllAccounts() as Promise<SyncResult[]>,
+    onSuccess: (results) => {
+      const ok = results.filter((r) => r.success).length;
+      const failed = results.length - ok;
+      const added = results.reduce((s, r) => s + (r.transactions_added ?? 0), 0);
+      setSyncAllMsg(
+        `✓ Synced ${ok}/${results.length} account${results.length === 1 ? '' : 's'}` +
+          ` — +${added} new txns${failed ? `, ${failed} failed` : ''}`
+      );
+      // Surface per-account results in each row too.
+      setMessages((m) => {
+        const next = { ...m };
+        for (const r of results) {
+          next[r.account_id] = r.success
+            ? `✓ Synced: +${r.transactions_added} new, ${r.transactions_updated} updated`
+            : `✗ ${r.error ?? 'Sync failed'}`;
+        }
+        return next;
+      });
+      queryClient.invalidateQueries({ queryKey: ['accounts'] });
+    },
+    onError: (err: unknown) => {
+      setSyncAllMsg(`✗ ${err instanceof Error ? err.message : 'Sync all failed'}`);
+    },
+  });
+
   function isCoolingDown(accountId: number) {
     return (cooldowns[accountId] ?? 0) > Date.now();
   }
@@ -61,7 +92,26 @@ export default function Accounts() {
 
   return (
     <div className="px-4 py-6 space-y-4">
-      <h1 className="text-3xl font-bold text-gray-900">Accounts</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-3xl font-bold text-gray-900">Accounts</h1>
+        <div className="flex flex-col items-end gap-1">
+          <button
+            onClick={() => { setSyncAllMsg(''); syncAllMutation.mutate(); }}
+            disabled={syncAllMutation.isPending}
+            title="Sync all accounts now"
+            className="inline-flex items-center gap-2 px-4 py-2 text-sm rounded-md bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <RefreshCcw className={`h-4 w-4 ${syncAllMutation.isPending ? 'animate-spin' : ''}`} />
+            {syncAllMutation.isPending ? 'Syncing all…' : 'Sync All'}
+          </button>
+          {syncAllMsg && (
+            <span className={`text-xs ${syncAllMsg.startsWith('✓') ? 'text-green-600' : 'text-red-600'}`}>
+              {syncAllMsg}
+            </span>
+          )}
+        </div>
+      </div>
+      <p className="text-xs text-gray-400">Accounts also sync automatically in the background every 5 minutes.</p>
 
       {isLoading ? (
         <p className="text-gray-500">Loading…</p>
