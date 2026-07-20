@@ -114,15 +114,24 @@ class PlaidIntegration(BaseIntegration):
             response = self._client.transactions_get(request)
             transactions = []
 
+            # Plaid reports positive = money out for every account type. This
+            # app keeps depository (checking/savings) spending in Plaid's raw
+            # orientation, but flips credit/loan so a card purchase reads as a
+            # negative expense — matching how TrueLayer cards are handled.
+            acct_types = {
+                a['account_id']: str(a.get('type', ''))
+                for a in response.get('accounts', [])
+            }
+            is_liability = acct_types.get(account_id, '') in ('credit', 'loan')
+
             for txn in response['transactions']:
-                # Plaid uses positive = money out, negative = money in. This
-                # app's convention is the opposite (debits negative), so flip.
-                raw = txn.get('amount', 0)
+                raw = txn.get('amount', 0) or 0
+                amount = -raw if is_liability else raw
                 category = txn.get('category', [None])[0] if txn.get('category') else None
                 transactions.append(TransactionData(
                     external_id=txn['transaction_id'],
                     description=txn.get('name', ''),
-                    amount=-raw if raw is not None else 0,
+                    amount=amount,
                     currency=txn.get('iso_currency_code') or 'USD',
                     date=_to_datetime(txn['date']),
                     merchant_name=txn.get('merchant_name'),
