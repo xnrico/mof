@@ -24,8 +24,8 @@ export default function Dashboard() {
 
   const { data: users } = useQuery<User[]>({ queryKey: ['users'], queryFn: () => api.getUsers() });
 
-  // Default to the first user once loaded
-  const activeTab: Tab | null = tab ?? users?.[0]?.id ?? null;
+  // Default to the shared Daixu view once users have loaded
+  const activeTab: Tab | null = tab ?? (users && users.length > 0 ? DAIXU : null);
   const isDaixu = activeTab === DAIXU;
   const activeUserId = typeof activeTab === 'number' ? activeTab : null;
 
@@ -99,6 +99,16 @@ export default function Dashboard() {
         <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Dashboard</h1>
         {users && users.length > 0 && (
           <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => setTab(DAIXU)}
+              className={`px-4 py-2 rounded-md text-sm font-medium ${
+                isDaixu
+                  ? 'bg-purple-600 text-white'
+                  : 'bg-white text-purple-700 shadow-sm hover:bg-purple-50'
+              }`}
+            >
+              Daixu
+            </button>
             {users.map((u) => (
               <button
                 key={u.id}
@@ -112,16 +122,6 @@ export default function Dashboard() {
                 {u.name}
               </button>
             ))}
-            <button
-              onClick={() => setTab(DAIXU)}
-              className={`px-4 py-2 rounded-md text-sm font-medium ${
-                isDaixu
-                  ? 'bg-purple-600 text-white'
-                  : 'bg-white text-purple-700 shadow-sm hover:bg-purple-50'
-              }`}
-            >
-              Daixu
-            </button>
           </div>
         )}
       </div>

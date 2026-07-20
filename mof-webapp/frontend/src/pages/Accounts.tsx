@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { RefreshCw, RefreshCcw } from 'lucide-react';
-import { api, formatCurrency, Account, SyncResult } from '../services/api';
+import { api, formatCurrency, Account, User, SyncResult } from '../services/api';
 
 function ProviderBadge({ provider }: { provider: string }) {
   const colors: Record<string, string> = {
@@ -30,6 +30,11 @@ export default function Accounts() {
     queryFn: () => api.getAccounts(),
     // Pick up balance/last-synced updates from the 5-minute background sync.
     refetchInterval: 60_000,
+  });
+
+  const { data: users } = useQuery<User[]>({
+    queryKey: ['users'],
+    queryFn: () => api.getUsers(),
   });
 
   const syncMutation = useMutation({
@@ -90,6 +95,32 @@ export default function Accounts() {
     return () => clearInterval(id);
   }, []);
 
+  // Stable display order so rows don't reshuffle on every resync:
+  // group by owner (Daixu shared pool first, then each user), and within a
+  // group sort by account type, then name, then id.
+  const userName = (id: number) => users?.find((u) => u.id === id)?.name ?? `User ${id}`;
+  const groups = (() => {
+    const byGroup = new Map<string, { label: string; order: number; rows: Account[] }>();
+    for (const a of accounts ?? []) {
+      const key = a.is_shared ? 'daixu' : `user-${a.user_id}`;
+      const label = a.is_shared ? 'Daixu (shared)' : userName(a.user_id);
+      // Daixu first (order -1), then users in ascending id order.
+      const order = a.is_shared ? -1 : a.user_id;
+      if (!byGroup.has(key)) byGroup.set(key, { label, order, rows: [] });
+      byGroup.get(key)!.rows.push(a);
+    }
+    const sorted = [...byGroup.values()].sort((x, y) => x.order - y.order);
+    for (const g of sorted) {
+      g.rows.sort(
+        (x, y) =>
+          x.account_type.localeCompare(y.account_type) ||
+          x.name.localeCompare(y.name) ||
+          x.id - y.id
+      );
+    }
+    return sorted;
+  })();
+
   return (
     <div className="px-4 py-6 space-y-4">
       <div className="flex items-start justify-between flex-wrap gap-3">
@@ -143,7 +174,16 @@ export default function Accounts() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {(accounts ?? []).map((a) => (
+              {groups.map((g) => [
+                <tr key={`hdr-${g.label}`} className="bg-gray-50">
+                  <td
+                    colSpan={6}
+                    className="px-4 py-2 text-xs font-semibold uppercase tracking-wider text-gray-500"
+                  >
+                    {g.label}
+                  </td>
+                </tr>,
+                ...g.rows.map((a) => (
                 <tr key={a.id}>
                   <td className="px-4 py-3">
                     <div className="font-medium text-gray-900">{a.name}</div>
@@ -183,7 +223,8 @@ export default function Accounts() {
                     })()}
                   </td>
                 </tr>
-              ))}
+                )),
+              ])}
               {accounts && accounts.length === 0 && (
                 <tr>
                   <td colSpan={6} className="px-4 py-8 text-center text-gray-500">
