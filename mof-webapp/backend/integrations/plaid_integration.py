@@ -29,10 +29,10 @@ class PlaidIntegration(BaseIntegration):
     async def initialize(self) -> bool:
         """Initialize Plaid client"""
         try:
-            # Map environment string to Plaid environment
+            # Map environment string to Plaid environment. plaid-python 28
+            # dropped the Development host — only Sandbox and Production remain.
             env_map = {
                 "sandbox": plaid.Environment.Sandbox,
-                "development": plaid.Environment.Development,
                 "production": plaid.Environment.Production,
             }
 

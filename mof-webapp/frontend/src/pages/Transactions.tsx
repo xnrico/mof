@@ -11,11 +11,27 @@ const CATEGORIES = [
 export default function Transactions() {
   const [accountId, setAccountId] = useState<number | ''>('');
   const [category, setCategory] = useState<string>('');
+  const [primaryCurrency, setPrimaryCurrency] = useState<'GBP' | 'USD'>('GBP');
 
   const { data: accounts } = useQuery<Account[]>({
     queryKey: ['accounts', 'all'],
     queryFn: () => api.getAccounts(),
   });
+
+  const { data: fx } = useQuery({
+    queryKey: ['fx-rates'],
+    queryFn: () => api.getFxRates(),
+    refetchInterval: 60000,
+  });
+
+  // Convert a native amount into the chosen primary currency.
+  const gbpUsd = fx?.GBP_USD ?? 1.27;
+  function toPrimary(amount: number, from: string): number {
+    if (from === primaryCurrency) return amount;
+    if (from === 'GBP' && primaryCurrency === 'USD') return amount * gbpUsd;
+    if (from === 'USD' && primaryCurrency === 'GBP') return amount / gbpUsd;
+    return amount;
+  }
 
   const { data: transactions, isLoading } = useQuery<Transaction[]>({
     queryKey: ['transactions', accountId, category],
@@ -55,6 +71,19 @@ export default function Transactions() {
             <option key={c} value={c}>{c}</option>
           ))}
         </select>
+        <div className="inline-flex rounded-md border border-gray-300 bg-white overflow-hidden sm:ml-auto">
+          {(['GBP', 'USD'] as const).map((c) => (
+            <button
+              key={c}
+              onClick={() => setPrimaryCurrency(c)}
+              className={`px-3 py-2 text-sm font-medium ${
+                primaryCurrency === c ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              {c}
+            </button>
+          ))}
+        </div>
       </div>
 
       <div className="bg-white rounded-lg shadow-sm overflow-x-auto">
@@ -90,7 +119,12 @@ export default function Transactions() {
                     <td className="px-4 py-3 text-sm text-gray-700">{accountName(t.account_id)}</td>
                     <td className="px-4 py-3 text-sm text-gray-700">{cat}</td>
                     <td className={`px-4 py-3 text-sm font-medium text-right ${t.amount < 0 ? 'text-red-600' : 'text-gray-900'}`}>
-                      {formatCurrency(t.amount, t.currency)}
+                      {formatCurrency(toPrimary(t.amount, t.currency), primaryCurrency)}
+                      {t.currency !== primaryCurrency && (
+                        <div className="text-xs font-normal text-gray-400">
+                          {formatCurrency(t.amount, t.currency)}
+                        </div>
+                      )}
                     </td>
                   </tr>
                 );
