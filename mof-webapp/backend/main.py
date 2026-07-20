@@ -7,7 +7,7 @@ from apscheduler.triggers.interval import IntervalTrigger
 
 from config import settings
 from models.database import init_db, get_db
-from api import accounts, transactions, users, sync, settings as settings_api, gocardless, truelayer, key_pairs, plaid
+from api import accounts, transactions, users, sync, settings as settings_api, gocardless, truelayer, key_pairs, plaid, fx
 
 
 # Initialize scheduler
@@ -19,6 +19,15 @@ async def lifespan(app: FastAPI):
     """Startup and shutdown events"""
     # Startup
     await init_db()
+
+    # Prime the FX rate cache so the dashboard has a live rate immediately.
+    try:
+        from services.fx_service import refresh_rate
+        from models.database import async_session_maker
+        async with async_session_maker() as session:
+            await refresh_rate(session)
+    except Exception as e:
+        print(f"Initial FX refresh skipped: {e}")
 
     # Start scheduler for periodic syncing — every 5 minutes in the background
     scheduler.add_job(
@@ -68,6 +77,7 @@ app.include_router(settings_api.router, prefix="/api/settings", tags=["settings"
 app.include_router(gocardless.router, prefix="/api/gocardless", tags=["gocardless"])
 app.include_router(truelayer.router, prefix="/api/truelayer", tags=["truelayer"])
 app.include_router(plaid.router, prefix="/api/plaid", tags=["plaid"])
+app.include_router(fx.router, prefix="/api/fx", tags=["fx"])
 app.include_router(key_pairs.router, prefix="/api/key-pairs", tags=["key-pairs"])
 
 
@@ -97,6 +107,13 @@ async def sync_all_accounts_job():
         sync_service = SyncService(session)
         results = await sync_service.sync_all_accounts()
         print(f"Sync job completed: {len(results)} accounts processed")
+
+    # Refresh the FX rate on the same 5-minute cadence.
+    from services.fx_service import refresh_rate
+    async with async_session_maker() as session:
+        rate = await refresh_rate(session)
+        if rate:
+            print(f"FX rate refreshed: 1 GBP = {rate} USD")
 
 
 if __name__ == "__main__":

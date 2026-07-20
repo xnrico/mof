@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { usePlaidLink } from 'react-plaid-link';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, RefreshCw } from 'lucide-react';
-import { api, formatCurrency, Account, PlaidLinkAccount } from '../services/api';
+import { api, formatCurrency, Account, KeyPair, PlaidLinkAccount } from '../services/api';
 
 interface ExchangeResult {
   access_token: string;
@@ -16,9 +16,17 @@ export default function PlaidConnect({ account }: { account: Account }) {
   const [exchange, setExchange] = useState<ExchangeResult | null>(null);
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
+  const [pairId, setPairId] = useState<number | ''>('');
+
+  const { data: keyPairs } = useQuery<KeyPair[]>({
+    queryKey: ['key-pairs', 'Plaid'],
+    queryFn: () => api.listKeyPairs('Plaid'),
+  });
+
+  const kpId = pairId === '' ? undefined : pairId;
 
   const exchangeMutation = useMutation({
-    mutationFn: (publicToken: string) => api.exchangePlaidPublicToken(publicToken),
+    mutationFn: (publicToken: string) => api.exchangePlaidPublicToken(publicToken, kpId),
     onSuccess: (data) => setExchange(data),
     onError: (e: unknown) => setMessage(`✗ ${e instanceof Error ? e.message : 'Exchange failed'}`),
   });
@@ -45,7 +53,7 @@ export default function PlaidConnect({ account }: { account: Account }) {
     setMessage('');
     setExchange(null);
     try {
-      const { link_token } = await api.createPlaidLinkToken(account.id);
+      const { link_token } = await api.createPlaidLinkToken(account.id, kpId);
       setLinkToken(link_token);
     } catch (e: unknown) {
       setMessage(`✗ ${e instanceof Error ? e.message : 'Could not start Plaid'}`);
@@ -61,6 +69,7 @@ export default function PlaidConnect({ account }: { account: Account }) {
         plaid_account_id: acc.account_id,
         access_token: exchange!.access_token,
         item_id: exchange!.item_id,
+        key_pair_id: kpId,
       }),
     onSuccess: () => {
       setMessage('✓ Account linked — ready to sync');
@@ -74,6 +83,20 @@ export default function PlaidConnect({ account }: { account: Account }) {
 
   return (
     <div className="space-y-3">
+      <div>
+        <label className="block text-xs font-medium text-gray-600 mb-1">Key Pair (Client ID / Secret)</label>
+        <select value={pairId}
+          onChange={e => setPairId(e.target.value === '' ? '' : Number(e.target.value))}
+          className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white">
+          <option value="">— use global app settings —</option>
+          {(keyPairs ?? []).map(kp => (
+            <option key={kp.id} value={kp.id}>{kp.name}</option>
+          ))}
+        </select>
+        <p className="text-[11px] text-gray-400 mt-1">
+          Add pairs (with env = sandbox/production) under Settings → Key Pairs.
+        </p>
+      </div>
       <button
         onClick={handleConnect}
         disabled={busy}

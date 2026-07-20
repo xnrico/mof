@@ -239,9 +239,11 @@ class SyncService:
             return await provider_settings.get_effective(self.db, key, fallback)
 
         if provider == IntegrationProvider.PLAID:
-            credentials["client_id"] = await _get("PLAID_CLIENT_ID", settings.PLAID_CLIENT_ID)
-            credentials["secret"]    = await _get("PLAID_SECRET",    settings.PLAID_SECRET)
-            credentials["env"]       = await _get("PLAID_ENV",       settings.PLAID_ENV)
+            # Key pairs store short keys (client_id/secret/env); fall back to
+            # global app_settings / .env when no pair is selected.
+            credentials["client_id"] = kp_creds.get("client_id") or await provider_settings.get_effective(self.db, "PLAID_CLIENT_ID", settings.PLAID_CLIENT_ID)
+            credentials["secret"]    = kp_creds.get("secret")    or await provider_settings.get_effective(self.db, "PLAID_SECRET",    settings.PLAID_SECRET)
+            credentials["env"]       = kp_creds.get("env")       or await provider_settings.get_effective(self.db, "PLAID_ENV",       settings.PLAID_ENV)
             credentials["item_id"]   = config.item_id
 
         elif provider == IntegrationProvider.GOCARDLESS:

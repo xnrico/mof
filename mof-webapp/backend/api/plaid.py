@@ -10,6 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from pydantic import BaseModel
+from typing import Optional
 
 from models.database import get_db
 from models.models import Account, IntegrationConfig, IntegrationProvider
@@ -20,10 +21,12 @@ router = APIRouter()
 
 class LinkTokenRequest(BaseModel):
     account_id: int
+    key_pair_id: Optional[int] = None
 
 
 class ExchangeRequest(BaseModel):
     public_token: str
+    key_pair_id: Optional[int] = None
 
 
 class SetAccountRequest(BaseModel):
@@ -31,6 +34,7 @@ class SetAccountRequest(BaseModel):
     plaid_account_id: str
     access_token: str
     item_id: str
+    key_pair_id: Optional[int] = None
 
 
 @router.post("/link-token")
@@ -39,7 +43,7 @@ async def create_link_token(req: LinkTokenRequest, db: AsyncSession = Depends(ge
     account = await db.get(Account, req.account_id)
     if not account:
         raise HTTPException(404, "Account not found")
-    client = PlaidClient(db)
+    client = PlaidClient(db, key_pair_id=req.key_pair_id)
     token = await client.create_link_token(req.account_id)
     if not token:
         raise HTTPException(502, "Could not create Plaid link token — check Client ID/Secret in Settings")
@@ -49,7 +53,7 @@ async def create_link_token(req: LinkTokenRequest, db: AsyncSession = Depends(ge
 @router.post("/exchange")
 async def exchange_public_token(req: ExchangeRequest, db: AsyncSession = Depends(get_db)):
     """Exchange the widget's public_token and return the linkable accounts."""
-    client = PlaidClient(db)
+    client = PlaidClient(db, key_pair_id=req.key_pair_id)
     tokens = await client.exchange_public_token(req.public_token)
     if not tokens:
         raise HTTPException(502, "Public token exchange failed")
@@ -74,6 +78,7 @@ async def set_account(req: SetAccountRequest, db: AsyncSession = Depends(get_db)
         config.access_token = req.access_token
         config.item_id = req.item_id
         config.provider = IntegrationProvider.PLAID
+        config.key_pair_id = req.key_pair_id
         config.is_active = True
     else:
         db.add(IntegrationConfig(
@@ -81,6 +86,7 @@ async def set_account(req: SetAccountRequest, db: AsyncSession = Depends(get_db)
             provider=IntegrationProvider.PLAID,
             access_token=req.access_token,
             item_id=req.item_id,
+            key_pair_id=req.key_pair_id,
             is_active=True,
         ))
 

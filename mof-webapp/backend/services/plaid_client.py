@@ -21,8 +21,10 @@ from plaid.model.link_token_create_request_user import LinkTokenCreateRequestUse
 from plaid.model.item_public_token_exchange_request import ItemPublicTokenExchangeRequest
 from plaid.model.accounts_get_request import AccountsGetRequest
 
+import json
 from sqlalchemy.ext.asyncio import AsyncSession
 from services import provider_settings
+from models.models import ProviderKeyPair
 
 _ENV_HOSTS = {
     "sandbox": plaid.Environment.Sandbox,
@@ -31,18 +33,32 @@ _ENV_HOSTS = {
 
 
 class PlaidClient:
-    """DB-aware Plaid client for the account-linking flow."""
+    """DB-aware Plaid client for the account-linking flow.
 
-    def __init__(self, db: AsyncSession):
+    Credentials come from the named key pair (``key_pair_id``) when provided,
+    otherwise from the global app settings / .env.
+    """
+
+    def __init__(self, db: AsyncSession, key_pair_id: Optional[int] = None):
         self.db = db
+        self.key_pair_id = key_pair_id
         self._client: Optional[plaid_api.PlaidApi] = None
+
+    async def _load_key_pair(self) -> dict:
+        if not self.key_pair_id:
+            return {}
+        kp = await self.db.get(ProviderKeyPair, self.key_pair_id)
+        if kp and kp.credentials:
+            return json.loads(kp.credentials)
+        return {}
 
     async def _get_client(self) -> Optional[plaid_api.PlaidApi]:
         if self._client is not None:
             return self._client
-        client_id = await provider_settings.get_effective(self.db, "PLAID_CLIENT_ID")
-        secret = await provider_settings.get_effective(self.db, "PLAID_SECRET")
-        env = (await provider_settings.get_effective(self.db, "PLAID_ENV")) or "sandbox"
+        kp = await self._load_key_pair()
+        client_id = kp.get("client_id") or await provider_settings.get_effective(self.db, "PLAID_CLIENT_ID")
+        secret = kp.get("secret") or await provider_settings.get_effective(self.db, "PLAID_SECRET")
+        env = kp.get("env") or (await provider_settings.get_effective(self.db, "PLAID_ENV")) or "sandbox"
         if not client_id or not secret:
             return None
         config = plaid.Configuration(

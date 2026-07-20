@@ -21,8 +21,17 @@ type Tab = number | typeof DAIXU;
 export default function Dashboard() {
   const [tab, setTab] = useState<Tab | null>(null);
   const [includeShared, setIncludeShared] = useState(true);
+  const [displayCurrency, setDisplayCurrency] = useState<'GBP' | 'USD'>('GBP');
 
   const { data: users } = useQuery<User[]>({ queryKey: ['users'], queryFn: () => api.getUsers() });
+
+  // FX rates for converting balances to the chosen display currency. Refreshed
+  // server-side every 5 min; we re-fetch every 60s to pick up new rates.
+  const { data: fx } = useQuery({
+    queryKey: ['fx-rates'],
+    queryFn: () => api.getFxRates(),
+    refetchInterval: 60000,
+  });
 
   // Default to the shared Daixu view once users have loaded
   const activeTab: Tab | null = tab ?? (users && users.length > 0 ? DAIXU : null);
@@ -77,13 +86,25 @@ export default function Dashboard() {
     enabled: summaryUserIds.length > 0,
   });
 
-  // Aggregate balances per currency
+  // Convert any amount into the selected display currency using the FX rate.
+  const gbpUsd = fx?.GBP_USD ?? 1.27;
+  function toDisplay(amount: number, from: string): number {
+    if (from === displayCurrency) return amount;
+    if (from === 'GBP' && displayCurrency === 'USD') return amount * gbpUsd;
+    if (from === 'USD' && displayCurrency === 'GBP') return amount / gbpUsd;
+    return amount; // unknown currency: show as-is
+  }
+
+  // Aggregate balances per currency (native) and as a converted grand total.
   const balancesByCurrency: Record<string, number> = {};
+  let totalInDisplay = 0;
   accounts.forEach((a) => {
     if (a.current_balance != null) {
       balancesByCurrency[a.currency] = (balancesByCurrency[a.currency] ?? 0) + a.current_balance;
+      totalInDisplay += toDisplay(a.current_balance, a.currency);
     }
   });
+  const hasMultipleCurrencies = Object.keys(balancesByCurrency).length > 1;
 
   const monthlyIncome = (income ?? [])
     .filter((i) => i.frequency === 'monthly')
@@ -126,6 +147,31 @@ export default function Dashboard() {
         )}
       </div>
 
+      {/* Currency switch */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <div className="inline-flex rounded-md border border-gray-200 bg-white overflow-hidden">
+          {(['GBP', 'USD'] as const).map((c) => (
+            <button
+              key={c}
+              onClick={() => setDisplayCurrency(c)}
+              className={`px-3 py-1.5 text-sm font-medium ${
+                displayCurrency === c ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              {c}
+            </button>
+          ))}
+        </div>
+        {fx && (
+          <span className="text-xs text-gray-400">
+            1 GBP = {fx.GBP_USD.toFixed(4)} USD
+            {fx.stale && ' (fallback)'}
+            {fx.updated_at && !fx.stale &&
+              ` · updated ${new Date(fx.updated_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}
+          </span>
+        )}
+      </div>
+
       {/* Shared-account toggle (per-user tabs only; Daixu always includes all) */}
       {!isDaixu && (
         <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer w-fit">
@@ -145,14 +191,19 @@ export default function Dashboard() {
           <div className="flex items-center gap-3">
             <Wallet className="h-8 w-8 text-blue-600" />
             <div>
-              <p className="text-sm text-gray-500">Total Balance</p>
+              <p className="text-sm text-gray-500">Total Balance ({displayCurrency})</p>
               <div className="text-2xl font-bold text-gray-900">
                 {Object.keys(balancesByCurrency).length === 0
                   ? '—'
-                  : Object.entries(balancesByCurrency).map(([cur, amt]) => (
-                      <div key={cur}>{formatCurrency(amt, cur)}</div>
-                    ))}
+                  : formatCurrency(totalInDisplay, displayCurrency)}
               </div>
+              {hasMultipleCurrencies && (
+                <div className="text-xs text-gray-400 mt-0.5">
+                  {Object.entries(balancesByCurrency).map(([cur, amt]) => (
+                    <span key={cur} className="mr-2">{formatCurrency(amt, cur)}</span>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </Card>
@@ -160,8 +211,10 @@ export default function Dashboard() {
           <div className="flex items-center gap-3">
             <TrendingUp className="h-8 w-8 text-green-600" />
             <div>
-              <p className="text-sm text-gray-500">Monthly Income</p>
-              <p className="text-2xl font-bold text-gray-900">{formatCurrency(monthlyIncome, 'GBP')}</p>
+              <p className="text-sm text-gray-500">Monthly Income ({displayCurrency})</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {formatCurrency(toDisplay(monthlyIncome, 'GBP'), displayCurrency)}
+              </p>
             </div>
           </div>
         </Card>

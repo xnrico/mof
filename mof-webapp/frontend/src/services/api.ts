@@ -173,14 +173,26 @@ export const api = {
     return response.data;
   },
 
+  // Exchange rates (GBP <-> USD)
+  getFxRates: async () => {
+    const response = await client.get('/fx/rates');
+    return response.data as {
+      GBP_USD: number; USD_GBP: number; updated_at: string | null; stale: boolean;
+    };
+  },
+
   // Plaid bank linking (USD accounts)
-  createPlaidLinkToken: async (accountId: number) => {
-    const response = await client.post('/plaid/link-token', { account_id: accountId });
+  createPlaidLinkToken: async (accountId: number, keyPairId?: number) => {
+    const response = await client.post('/plaid/link-token', {
+      account_id: accountId, key_pair_id: keyPairId,
+    });
     return response.data as { link_token: string };
   },
 
-  exchangePlaidPublicToken: async (publicToken: string) => {
-    const response = await client.post('/plaid/exchange', { public_token: publicToken });
+  exchangePlaidPublicToken: async (publicToken: string, keyPairId?: number) => {
+    const response = await client.post('/plaid/exchange', {
+      public_token: publicToken, key_pair_id: keyPairId,
+    });
     return response.data as {
       access_token: string;
       item_id: string;
@@ -193,6 +205,7 @@ export const api = {
     plaid_account_id: string;
     access_token: string;
     item_id: string;
+    key_pair_id?: number;
   }) => {
     const response = await client.post('/plaid/set-account', data);
     return response.data;
