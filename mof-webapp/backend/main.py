@@ -7,7 +7,7 @@ from apscheduler.triggers.interval import IntervalTrigger
 
 from config import settings
 from models.database import init_db, get_db
-from api import accounts, transactions, users, sync, settings as settings_api, gocardless, truelayer, key_pairs
+from api import accounts, transactions, users, sync, settings as settings_api, gocardless, truelayer, key_pairs, plaid
 
 
 # Initialize scheduler
@@ -67,6 +67,7 @@ app.include_router(sync.router, prefix="/api/sync", tags=["sync"])
 app.include_router(settings_api.router, prefix="/api/settings", tags=["settings"])
 app.include_router(gocardless.router, prefix="/api/gocardless", tags=["gocardless"])
 app.include_router(truelayer.router, prefix="/api/truelayer", tags=["truelayer"])
+app.include_router(plaid.router, prefix="/api/plaid", tags=["plaid"])
 app.include_router(key_pairs.router, prefix="/api/key-pairs", tags=["key-pairs"])
 
 

@@ -173,6 +173,31 @@ export const api = {
     return response.data;
   },
 
+  // Plaid bank linking (USD accounts)
+  createPlaidLinkToken: async (accountId: number) => {
+    const response = await client.post('/plaid/link-token', { account_id: accountId });
+    return response.data as { link_token: string };
+  },
+
+  exchangePlaidPublicToken: async (publicToken: string) => {
+    const response = await client.post('/plaid/exchange', { public_token: publicToken });
+    return response.data as {
+      access_token: string;
+      item_id: string;
+      accounts: PlaidLinkAccount[];
+    };
+  },
+
+  setPlaidAccount: async (data: {
+    mof_account_id: number;
+    plaid_account_id: string;
+    access_token: string;
+    item_id: string;
+  }) => {
+    const response = await client.post('/plaid/set-account', data);
+    return response.data;
+  },
+
   // Account management
   updateAccount: async (accountId: number, data: {
     name?: string; account_type?: string; currency?: string;
@@ -235,6 +260,16 @@ export interface Account {
   last_synced_at: string | null;
   is_active: boolean;
   is_shared: boolean;
+}
+
+export interface PlaidLinkAccount {
+  account_id: string;
+  display_name: string;
+  account_type: string;
+  mask: string | null;
+  currency: string;
+  balance: number | null;
+  available: number | null;
 }
 
 export interface Transaction {

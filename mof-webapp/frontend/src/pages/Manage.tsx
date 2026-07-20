@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, Pencil, Trash2, Link, ChevronDown, ChevronRight, RefreshCw } from 'lucide-react';
 import { api, Account, KeyPair, formatCurrency } from '../services/api';
+import PlaidConnect from '../components/PlaidConnect';
 
 const ACCOUNT_TYPES = ['Checking', 'Savings', 'Brokerage', 'Credit Card', 'Other'];
 const CURRENCIES = ['GBP', 'USD'];
@@ -128,6 +129,7 @@ function ConnectionPanel({ account }: { account: Account }) {
   }
 
   const isTrueLayer = account.provider === 'TrueLayer';
+  const isPlaid = account.provider === 'Plaid';
 
   return (
     <div className="border-t border-gray-100">
@@ -138,7 +140,13 @@ function ConnectionPanel({ account }: { account: Account }) {
         {account.provider !== 'Manual' && <span className="ml-auto text-xs text-gray-400">{account.provider}</span>}
       </button>
 
-      {expanded && (
+      {expanded && isPlaid && (
+        <div className="px-4 pb-4 pt-1 bg-gray-50">
+          <PlaidConnect account={account} />
+        </div>
+      )}
+
+      {expanded && !isPlaid && (
         <div className="px-4 pb-4 space-y-3 bg-gray-50">
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">Key Pair</label>

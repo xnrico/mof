@@ -1,6 +1,6 @@
 import { BrowserRouter as Router, Routes, Route, NavLink } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { DollarSign, CreditCard, List, Settings as SettingsIcon } from 'lucide-react';
+import { DollarSign, CreditCard, List, Settings as SettingsIcon, Wrench } from 'lucide-react';
 import Dashboard from './pages/Dashboard';
 import Accounts from './pages/Accounts';
 import Transactions from './pages/Transactions';
@@ -16,7 +16,7 @@ const navItems = [
   { to: '/accounts', label: 'Accounts', icon: CreditCard, end: false },
   { to: '/transactions', label: 'Transactions', icon: List, end: false },
   { to: '/manage', label: 'Manage', icon: SettingsIcon, end: false },
-  { to: '/settings', label: 'Settings', icon: SettingsIcon, end: false },
+  { to: '/settings', label: 'Settings', icon: Wrench, end: false },
 ];
 
 function App() {

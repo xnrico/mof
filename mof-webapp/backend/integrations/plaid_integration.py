@@ -1,10 +1,19 @@
 from typing import List, Dict, Any, Optional
-from datetime import datetime, timedelta
+from datetime import datetime, date, timedelta
 import plaid
 from plaid.api import plaid_api
 from plaid.model.transactions_get_request import TransactionsGetRequest
 from plaid.model.accounts_get_request import AccountsGetRequest
 from .base import BaseIntegration, TransactionData, AccountData
+
+
+def _to_datetime(value: Any) -> datetime:
+    """Plaid returns transaction dates as date objects; normalise to datetime."""
+    if isinstance(value, datetime):
+        return value
+    if isinstance(value, date):
+        return datetime(value.year, value.month, value.day)
+    return datetime.strptime(str(value), "%Y-%m-%d")
 
 
 class PlaidIntegration(BaseIntegration):
@@ -53,12 +62,19 @@ class PlaidIntegration(BaseIntegration):
 
             accounts = []
             for account in response['accounts']:
+                acct_type = str(account.get('type', ''))
+                balances = account.get('balances', {})
+                current = balances.get('current')
+                # Credit cards / loans: Plaid reports the amount owed as a
+                # positive number. This app shows liabilities as negative.
+                if current is not None and acct_type in ('credit', 'loan'):
+                    current = -current
                 accounts.append(AccountData(
                     external_id=account['account_id'],
                     name=account['name'],
-                    account_type=account['type'],
-                    currency=account.get('balances', {}).get('iso_currency_code', 'USD'),
-                    balance=account.get('balances', {}).get('current'),
+                    account_type=acct_type,
+                    currency=balances.get('iso_currency_code', 'USD'),
+                    balance=current,
                     institution_name=account.get('official_name', account['name'])
                 ))
 
@@ -99,16 +115,18 @@ class PlaidIntegration(BaseIntegration):
             transactions = []
 
             for txn in response['transactions']:
-                # Plaid amounts are positive for outflows, negative for inflows
-                # We'll keep this convention
+                # Plaid uses positive = money out, negative = money in. This
+                # app's convention is the opposite (debits negative), so flip.
+                raw = txn.get('amount', 0)
+                category = txn.get('category', [None])[0] if txn.get('category') else None
                 transactions.append(TransactionData(
                     external_id=txn['transaction_id'],
-                    description=txn['name'],
-                    amount=txn['amount'],
-                    currency=txn.get('iso_currency_code', 'USD'),
-                    date=datetime.strptime(txn['date'], '%Y-%m-%d'),
+                    description=txn.get('name', ''),
+                    amount=-raw if raw is not None else 0,
+                    currency=txn.get('iso_currency_code') or 'USD',
+                    date=_to_datetime(txn['date']),
                     merchant_name=txn.get('merchant_name'),
-                    category=txn.get('category', [None])[0] if txn.get('category') else None,
+                    category=category,
                     pending=txn.get('pending', False)
                 ))
 
