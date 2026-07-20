@@ -1,5 +1,6 @@
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timedelta, timezone
+from urllib.parse import urlsplit, parse_qs
 import base64
 import httpx
 from .base import BaseIntegration, TransactionData, AccountData
@@ -12,6 +13,14 @@ def _naive_utc(dt: datetime) -> datetime:
     return dt
 
 
+def _extract_cursor(next_page_path: Optional[str]) -> Optional[str]:
+    """Pull the `cursor` query param out of T212's nextPagePath URL/path."""
+    if not next_page_path:
+        return None
+    values = parse_qs(urlsplit(next_page_path).query).get("cursor")
+    return values[0] if values else None
+
+
 class Trading212Integration(BaseIntegration):
     """Trading 212 API integration for UK brokerage accounts"""
 
@@ -20,6 +29,8 @@ class Trading212Integration(BaseIntegration):
         api_key = credentials.get("api_key") or ""
         api_secret = credentials.get("api_secret") or ""
         self.env = credentials.get("env", "live")
+        # Set when a transactions fetch fails so sync reports a partial status.
+        self.last_txn_error: Optional[str] = None
 
         # Trading 212 uses HTTP Basic auth: base64("key:secret")
         raw = f"{api_key}:{api_secret}".encode()
@@ -181,10 +192,111 @@ class Trading212Integration(BaseIntegration):
                                 pending=False
                             ))
 
+                # Cash movements: deposits, withdrawals, fees, transfers.
+                await self._fetch_cash_transactions(
+                    client, transactions, start_date, end_date
+                )
+
             return transactions
         except Exception as e:
             print(f"Failed to fetch Trading 212 transactions: {e}")
             return []
+
+    # Sign convention: money leaving the account is negative, money in positive.
+    _CASH_CATEGORY = {
+        "DEPOSIT": "Deposit",
+        "WITHDRAW": "Withdrawal",
+        "FEE": "Fee",
+        "TRANSFER": "Transfer",
+    }
+
+    async def _fetch_cash_transactions(
+        self,
+        client: httpx.AsyncClient,
+        transactions: List[TransactionData],
+        start_date: datetime,
+        end_date: datetime,
+    ) -> None:
+        """Fetch cash movements from /equity/history/transactions (paginated).
+
+        Rate limit is 6 req/min, so we cap pages defensively and stop on 429.
+        """
+        params: Dict[str, Any] = {
+            "limit": 50,
+            "time": start_date.strftime("%Y-%m-%dT%H:%M:%SZ"),
+        }
+        cursor: Optional[str] = None
+        try:
+            for _ in range(20):  # hard page cap (20 * 50 = 1000 movements)
+                if cursor:
+                    params["cursor"] = cursor
+                resp = await client.get(
+                    f"{self.base_url}/equity/history/transactions",
+                    headers={"Authorization": self._auth_header},
+                    params=params,
+                )
+                if resp.status_code == 429:
+                    self.last_txn_error = (
+                        "transactions rate limited (429) — will retry next sync"
+                    )
+                    return
+                if resp.status_code != 200:
+                    self.last_txn_error = (
+                        f"transactions HTTP {resp.status_code}: {resp.text[:200]}"
+                    )
+                    return
+
+                payload = resp.json()
+                items = payload.get("items", []) if isinstance(payload, dict) else []
+                if not self._append_cash_items(items, transactions, start_date, end_date):
+                    break  # reached items older than the window; stop paging
+
+                next_path = payload.get("nextPagePath") if isinstance(payload, dict) else None
+                cursor = _extract_cursor(next_path)
+                if not cursor:
+                    break
+        except Exception as e:
+            self.last_txn_error = str(e)
+
+    def _append_cash_items(
+        self,
+        items: List[Dict[str, Any]],
+        transactions: List[TransactionData],
+        start_date: datetime,
+        end_date: datetime,
+    ) -> bool:
+        """Append in-window movements. Returns False if we hit an older-than-window
+        item (results are newest-first, so that means we can stop paging)."""
+        keep_paging = True
+        for item in items:
+            raw_dt = item.get("dateTime", "")
+            if not raw_dt:
+                continue
+            when = _naive_utc(datetime.fromisoformat(raw_dt.replace("Z", "+00:00")))
+            if when < start_date:
+                keep_paging = False
+                continue
+            if when > end_date:
+                continue
+            ttype = (item.get("type") or "").upper()
+            amount = float(item.get("amount", 0))
+            # Normalise sign by type; API amount sign is not guaranteed.
+            if ttype in ("WITHDRAW", "FEE"):
+                amount = -abs(amount)
+            elif ttype == "DEPOSIT":
+                amount = abs(amount)
+            ref = item.get("reference", "")
+            transactions.append(TransactionData(
+                external_id=f"CASH-{ref}",
+                description=self._CASH_CATEGORY.get(ttype, ttype.title() or "Cash movement"),
+                amount=amount,
+                currency=item.get("currency", "GBP"),
+                date=when,
+                merchant_name="Trading 212",
+                category=self._CASH_CATEGORY.get(ttype, "Transfer"),
+                pending=False,
+            ))
+        return keep_paging
 
     async def get_balance(self, account_id: str) -> Optional[float]:
         """Get balance for the account"""
