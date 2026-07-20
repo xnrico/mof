@@ -120,6 +120,17 @@ async def run():
         """))
         print("  accounts.is_shared column: OK")
 
+        # SOPHTRON enum value (added 2026-07-20)
+        result = await conn.execute(text(
+            "SELECT unnest(enum_range(NULL::integrationprovider))::text"
+        ))
+        existing_vals = [r[0] for r in result.fetchall()]
+        if "SOPHTRON" not in existing_vals:
+            await conn.execute(text("ALTER TYPE integrationprovider ADD VALUE 'SOPHTRON'"))
+            print("  integrationprovider enum: added SOPHTRON")
+        else:
+            print("  integrationprovider enum: SOPHTRON already present")
+
     await engine_schema.dispose()
     print("\nMigration complete.")
 
