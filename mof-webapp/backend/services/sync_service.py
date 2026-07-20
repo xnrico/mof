@@ -280,6 +280,14 @@ class SyncService:
             credentials["api_secret"] = api_secret
             credentials["env"]        = kp_creds.get("env") or await provider_settings.get_effective(self.db, "TRADING212_ENV", settings.TRADING212_ENV)
 
+        elif provider == IntegrationProvider.SOPHTRON:
+            from services.sophtron_client import SophtronClient
+            cfg = json.loads(config.config_data) if config.config_data else {}
+            credentials["_client"] = SophtronClient(self.db, key_pair_id=config.key_pair_id)
+            credentials["user_institution_id"] = cfg.get("user_institution_id")
+            # AccountID is stored in item_id (mirrors Plaid) and external_account_id.
+            credentials["account_id"] = config.item_id
+
         return credentials
 
     @staticmethod

@@ -5,6 +5,7 @@ from .gocardless_integration import GoCardlessIntegration
 from .ibkr_integration import IBKRIntegration
 from .trading212_integration import Trading212Integration
 from .truelayer_integration import TrueLayerIntegration
+from .sophtron_integration import SophtronIntegration
 
 
 class IntegrationFactory:
@@ -16,6 +17,7 @@ class IntegrationFactory:
         "ibkr": IBKRIntegration,
         "trading212": Trading212Integration,
         "truelayer": TrueLayerIntegration,
+        "sophtron": SophtronIntegration,
     }
 
     @classmethod

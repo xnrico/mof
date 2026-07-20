@@ -43,6 +43,7 @@ class IntegrationProvider(str, enum.Enum):
     TRUELAYER = "TrueLayer"
     IBKR = "IBKR"
     TRADING212 = "Trading212"
+    SOPHTRON = "Sophtron"
     MANUAL = "Manual"
 
 

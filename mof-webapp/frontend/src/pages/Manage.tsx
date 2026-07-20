@@ -3,10 +3,11 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, Pencil, Trash2, Link, ChevronDown, ChevronRight, RefreshCw } from 'lucide-react';
 import { api, Account, KeyPair, formatCurrency } from '../services/api';
 import PlaidConnect from '../components/PlaidConnect';
+import SophtronConnect from '../components/SophtronConnect';
 
 const ACCOUNT_TYPES = ['Checking', 'Savings', 'Brokerage', 'Credit Card', 'Other'];
 const CURRENCIES = ['GBP', 'USD'];
-const PROVIDERS = ['TrueLayer', 'Trading212', 'Plaid', 'GoCardless', 'IBKR', 'Manual'];
+const PROVIDERS = ['TrueLayer', 'Trading212', 'Plaid', 'Sophtron', 'GoCardless', 'IBKR', 'Manual'];
 
 // ---- Account Form ----
 
@@ -130,6 +131,7 @@ function ConnectionPanel({ account }: { account: Account }) {
 
   const isTrueLayer = account.provider === 'TrueLayer';
   const isPlaid = account.provider === 'Plaid';
+  const isSophtron = account.provider === 'Sophtron';
 
   return (
     <div className="border-t border-gray-100">
@@ -146,7 +148,13 @@ function ConnectionPanel({ account }: { account: Account }) {
         </div>
       )}
 
-      {expanded && !isPlaid && (
+      {expanded && isSophtron && (
+        <div className="px-4 pb-4 pt-1 bg-gray-50">
+          <SophtronConnect account={account} />
+        </div>
+      )}
+
+      {expanded && !isPlaid && !isSophtron && (
         <div className="px-4 pb-4 space-y-3 bg-gray-50">
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">Key Pair</label>

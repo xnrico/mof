@@ -38,6 +38,11 @@ PROVIDER_FIELDS = {
         {"key": "IBKR_PORT", "label": "Port", "secret": False},
         {"key": "IBKR_ACCOUNT_ID", "label": "Account ID", "secret": False},
     ],
+    "Sophtron": [
+        {"key": "SOPHTRON_USER_ID", "label": "API User ID", "secret": False},
+        {"key": "SOPHTRON_ACCESS_KEY", "label": "API Access Key", "secret": True},
+        {"key": "SOPHTRON_BASE_URL", "label": "Base URL", "secret": False},
+    ],
 }
 
 # All known setting keys and whether each is secret.

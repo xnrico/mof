@@ -40,6 +40,11 @@ class Settings(BaseSettings):
     TRADING212_API_KEY: Optional[str] = None
     TRADING212_ENV: str = "demo"
 
+    # Sophtron (data aggregator — e.g. HSBC US). HMAC-signed API.
+    SOPHTRON_USER_ID: Optional[str] = None
+    SOPHTRON_ACCESS_KEY: Optional[str] = None
+    SOPHTRON_BASE_URL: str = "https://api.sophtron.com/api/"
+
     # Sync
     SYNC_SCHEDULE: str = "0 */6 * * *"
     # How far back to pull transactions on the first sync of an account

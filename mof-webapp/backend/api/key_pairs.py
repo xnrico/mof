@@ -18,6 +18,7 @@ PROVIDER_FIELDS = {
     "Plaid":       [("client_id","Client ID",False), ("secret","Secret",True), ("env","Environment",False)],
     "GoCardless":  [("secret_id","Secret ID",False), ("secret_key","Secret Key",True), ("env","Environment",False)],
     "IBKR":        [("account_id","Account ID",False), ("host","Host",False), ("port","Port",False)],
+    "Sophtron":    [("user_id","API User ID",False), ("access_key","API Access Key",True), ("base_url","Base URL",False)],
     "Manual":      [],
 }
 
