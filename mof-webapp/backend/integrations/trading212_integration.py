@@ -1,6 +1,6 @@
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timedelta, timezone
-from urllib.parse import urlsplit, parse_qs
+from urllib.parse import urlsplit
 import base64
 import httpx
 from .base import BaseIntegration, TransactionData, AccountData
@@ -11,14 +11,6 @@ def _naive_utc(dt: datetime) -> datetime:
     if dt.tzinfo is not None:
         dt = dt.astimezone(timezone.utc).replace(tzinfo=None)
     return dt
-
-
-def _extract_cursor(next_page_path: Optional[str]) -> Optional[str]:
-    """Pull the `cursor` query param out of T212's nextPagePath URL/path."""
-    if not next_page_path:
-        return None
-    values = parse_qs(urlsplit(next_page_path).query).get("cursor")
-    return values[0] if values else None
 
 
 class Trading212Integration(BaseIntegration):
@@ -221,19 +213,16 @@ class Trading212Integration(BaseIntegration):
 
         Rate limit is 6 req/min, so we cap pages defensively and stop on 429.
         """
-        params: Dict[str, Any] = {
-            "limit": 50,
-            "time": start_date.strftime("%Y-%m-%dT%H:%M:%SZ"),
-        }
-        cursor: Optional[str] = None
+        # T212 rejects `time` without `cursorId` (and vice versa). So the first
+        # request sends neither (newest-first, default window) and we then follow
+        # nextPagePath verbatim — it carries a self-consistent cursor+time pair.
+        origin = urlsplit(self.base_url)
+        base_origin = f"{origin.scheme}://{origin.netloc}"
+        url: Optional[str] = f"{self.base_url}/equity/history/transactions?limit=50"
         try:
-            for _ in range(20):  # hard page cap (20 * 50 = 1000 movements)
-                if cursor:
-                    params["cursor"] = cursor
+            for _ in range(40):  # hard page cap (40 * 50 = 2000 movements)
                 resp = await client.get(
-                    f"{self.base_url}/equity/history/transactions",
-                    headers={"Authorization": self._auth_header},
-                    params=params,
+                    url, headers={"Authorization": self._auth_header}
                 )
                 if resp.status_code == 429:
                     self.last_txn_error = (
@@ -252,9 +241,9 @@ class Trading212Integration(BaseIntegration):
                     break  # reached items older than the window; stop paging
 
                 next_path = payload.get("nextPagePath") if isinstance(payload, dict) else None
-                cursor = _extract_cursor(next_path)
-                if not cursor:
+                if not next_path or not items:
                     break
+                url = next_path if next_path.startswith("http") else f"{base_origin}{next_path}"
         except Exception as e:
             self.last_txn_error = str(e)
 
