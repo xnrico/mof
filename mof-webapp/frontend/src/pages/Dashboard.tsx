@@ -96,6 +96,22 @@ export default function Dashboard() {
     enabled: summaryUserIds.length > 0,
   });
 
+  // This month's total income + spending (accounting rows only), summed
+  // across the tab's users. Shown alongside the spending pie.
+  const { data: monthTotalsData } = useQuery({
+    queryKey: ['month-totals', summaryUserIds],
+    queryFn: async () => {
+      const rows = await Promise.all(
+        summaryUserIds.map((id) => api.getMonthTotals(id, 'GBP'))
+      );
+      return rows.reduce(
+        (acc, r) => ({ income: acc.income + r.income, spending: acc.spending + r.spending }),
+        { income: 0, spending: 0 }
+      );
+    },
+    enabled: summaryUserIds.length > 0,
+  });
+
   // Convert any amount into the selected display currency using the FX rate.
   const gbpUsd = fx?.GBP_USD ?? 1.27;
   function toDisplay(amount: number, from: string): number {
@@ -235,7 +251,7 @@ export default function Dashboard() {
               <p className="text-2xl font-bold text-gray-900">
                 {formatCurrency(toDisplay(monthlyIncomeData?.additional_income ?? 0, 'GBP'), displayCurrency)}
               </p>
-              <p className="text-xs text-gray-400 mt-0.5">this month · Income + Interest</p>
+              <p className="text-xs text-gray-400 mt-0.5">this month · Income + Interest + Dividend</p>
             </div>
           </div>
         </Card>
@@ -247,39 +263,66 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      {/* Spending by category */}
+      {/* Spending by category + this month's totals */}
       <Card>
         <h2 className="text-lg font-semibold text-gray-900 mb-4">Spending by Category (GBP)</h2>
-        {chartData.length === 0 ? (
-          <p className="text-gray-500 text-sm py-12 text-center">
-            No transactions yet. Configure an integration and sync an account to see spending here.
-          </p>
-        ) : (
-          <ResponsiveContainer width="100%" height={320}>
-            <PieChart>
-              <Pie
-                data={chartData}
-                dataKey="value"
-                nameKey="name"
-                cx="50%"
-                cy="50%"
-                outerRadius={110}
-                label={({ percent }) => `${((percent ?? 0) * 100).toFixed(1)}%`}
-              >
-                {chartData.map((_, i) => (
-                  <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                ))}
-              </Pie>
-              <Tooltip
-                formatter={(v: number) => {
-                  const pct = spendingTotal > 0 ? (v / spendingTotal) * 100 : 0;
-                  return [`${formatCurrency(v, 'GBP')} (${pct.toFixed(1)}%)`, ''];
-                }}
-              />
-              <Legend />
-            </PieChart>
-          </ResponsiveContainer>
-        )}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-center">
+          <div className="lg:col-span-2">
+            {chartData.length === 0 ? (
+              <p className="text-gray-500 text-sm py-12 text-center">
+                No transactions yet. Configure an integration and sync an account to see spending here.
+              </p>
+            ) : (
+              <ResponsiveContainer width="100%" height={320}>
+                <PieChart>
+                  <Pie
+                    data={chartData}
+                    dataKey="value"
+                    nameKey="name"
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={110}
+                    label={({ percent }) => `${((percent ?? 0) * 100).toFixed(1)}%`}
+                  >
+                    {chartData.map((_, i) => (
+                      <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    formatter={(v: number) => {
+                      const pct = spendingTotal > 0 ? (v / spendingTotal) * 100 : 0;
+                      return [`${formatCurrency(v, 'GBP')} (${pct.toFixed(1)}%)`, ''];
+                    }}
+                  />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+
+          {/* This month's income / spending totals (accounting rows only) */}
+          <div className="space-y-4">
+            <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">This month</p>
+            <div>
+              <p className="text-sm text-gray-500">Total Income</p>
+              <p className="text-xl font-bold text-green-600">
+                {formatCurrency(toDisplay(monthTotalsData?.income ?? 0, 'GBP'), displayCurrency)}
+              </p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-500">Total Spending</p>
+              <p className="text-xl font-bold text-red-600">
+                {formatCurrency(toDisplay(monthTotalsData?.spending ?? 0, 'GBP'), displayCurrency)}
+              </p>
+            </div>
+            <div className="pt-2 border-t border-gray-100">
+              <p className="text-sm text-gray-500">Net</p>
+              <p className={`text-xl font-bold ${(monthTotalsData?.income ?? 0) - (monthTotalsData?.spending ?? 0) >= 0 ? 'text-gray-900' : 'text-red-600'}`}>
+                {formatCurrency(toDisplay((monthTotalsData?.income ?? 0) - (monthTotalsData?.spending ?? 0), 'GBP'), displayCurrency)}
+              </p>
+            </div>
+          </div>
+        </div>
       </Card>
     </div>
   );

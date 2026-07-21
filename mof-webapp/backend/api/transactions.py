@@ -218,34 +218,89 @@ async def get_monthly_income(
 ):
     """Monthly income breakdown for a user.
 
-    - salary: the amount of the user's latest monthly Salary income source
-      (the configured recurring salary), 0 if none.
+    - salary: sum of this calendar month's Salary-category transactions
+      (actual synced pay), falling back to the user's latest monthly Salary
+      income source when there are no Salary transactions yet this month.
     - additional_income: sum of this calendar month's transactions categorised
-      (effective category) as Income or Interest, across the user's accounts,
-      in the requested currency, respecting include_in_accounting.
+      (effective category) as Income, Interest, or Dividend.
+    Both across the user's accounts, in the requested currency, counting only
+    rows with include_in_accounting = true.
     """
-    # --- Salary: latest monthly income source ---
-    salary_row = (
-        await db.execute(
-            select(IncomeSource)
-            .where(
-                IncomeSource.user_id == user_id,
-                IncomeSource.is_active == True,
-                IncomeSource.frequency == "monthly",
-                func.lower(IncomeSource.name).contains("salary"),
-            )
-            .order_by(IncomeSource.id.desc())
-        )
-    ).scalars().first()
-    salary = float(salary_row.amount) if salary_row else 0.0
+    now = datetime.now()
+    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
-    # --- Additional income: this month's Income + Interest transactions ---
     accounts = (
         await db.execute(select(Account).where(Account.user_id == user_id))
     ).scalars().all()
     account_ids = [a.id for a in accounts]
 
+    salary = 0.0
     additional = 0.0
+    if account_ids:
+        txns = (
+            await db.execute(
+                select(Transaction).where(
+                    and_(
+                        Transaction.account_id.in_(account_ids),
+                        Transaction.is_hidden == False,
+                        Transaction.include_in_accounting == True,
+                        Transaction.currency == Currency(currency),
+                        Transaction.transaction_date >= month_start,
+                    )
+                )
+            )
+        ).scalars().all()
+        for t in txns:
+            cat = t.category_override if t.category_override else t.category
+            if cat == Category.SALARY:
+                salary += abs(t.amount)
+            elif cat in (Category.INCOME, Category.INTEREST, Category.DIVIDEND):
+                additional += abs(t.amount)
+
+    # Fall back to the configured monthly salary if none synced this month yet.
+    if salary == 0.0:
+        salary_row = (
+            await db.execute(
+                select(IncomeSource)
+                .where(
+                    IncomeSource.user_id == user_id,
+                    IncomeSource.is_active == True,
+                    IncomeSource.frequency == "monthly",
+                    func.lower(IncomeSource.name).contains("salary"),
+                )
+                .order_by(IncomeSource.id.desc())
+            )
+        ).scalars().first()
+        if salary_row:
+            salary = float(salary_row.amount)
+
+    return {
+        "salary": salary,
+        "additional_income": additional,
+        "total": salary + additional,
+        "currency": currency,
+    }
+
+
+@router.get("/summary/month-totals")
+async def get_month_totals(
+    user_id: int,
+    currency: str = "GBP",
+    db: AsyncSession = Depends(get_db),
+):
+    """This calendar month's total income and total spending for a user.
+
+    Income = sum of positive amounts, spending = sum of |negative amounts|,
+    across the user's accounts in the requested currency, counting only rows
+    with include_in_accounting = true.
+    """
+    accounts = (
+        await db.execute(select(Account).where(Account.user_id == user_id))
+    ).scalars().all()
+    account_ids = [a.id for a in accounts]
+
+    income = 0.0
+    spending = 0.0
     if account_ids:
         now = datetime.now()
         month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
@@ -263,13 +318,14 @@ async def get_monthly_income(
             )
         ).scalars().all()
         for t in txns:
-            cat = t.category_override if t.category_override else t.category
-            if cat in (Category.INCOME, Category.INTEREST):
-                additional += abs(t.amount)
+            if t.amount >= 0:
+                income += t.amount
+            else:
+                spending += -t.amount
 
     return {
-        "salary": salary,
-        "additional_income": additional,
-        "total": salary + additional,
+        "income": income,
+        "spending": spending,
+        "net": income - spending,
         "currency": currency,
     }

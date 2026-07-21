@@ -113,6 +113,13 @@ export const api = {
     return response.data as MonthlyIncome;
   },
 
+  getMonthTotals: async (userId: number, currency = 'GBP') => {
+    const response = await client.get('/transactions/summary/month-totals', {
+      params: { user_id: userId, currency }
+    });
+    return response.data as MonthTotals;
+  },
+
   // Sync
   syncAccount: async (accountId: number, full = false, sinceDays?: number) => {
     const params: Record<string, unknown> = { full };
@@ -301,6 +308,13 @@ export interface MonthlyIncome {
   salary: number;
   additional_income: number;
   total: number;
+  currency: string;
+}
+
+export interface MonthTotals {
+  income: number;
+  spending: number;
+  net: number;
   currency: string;
 }
 
