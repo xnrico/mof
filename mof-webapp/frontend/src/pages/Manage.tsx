@@ -38,12 +38,12 @@ function AccountForm({ initial, users, onSave, onCancel }: {
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
           <label className="block text-xs font-medium text-gray-600 mb-1">Name</label>
-          <input className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+          <input className="sov-input"
             value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
         </div>
         <div>
           <label className="block text-xs font-medium text-gray-600 mb-1">Owner</label>
-          <select className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white"
+          <select className="sov-input"
             value={form.is_shared ? SHARED_OWNER : form.user_id}
             onChange={e => {
               const v = e.target.value;
@@ -59,21 +59,21 @@ function AccountForm({ initial, users, onSave, onCancel }: {
         </div>
         <div>
           <label className="block text-xs font-medium text-gray-600 mb-1">Currency</label>
-          <select className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white"
+          <select className="sov-input"
             value={form.currency} onChange={e => setForm(f => ({ ...f, currency: e.target.value }))}>
             {CURRENCIES.map(c => <option key={c}>{c}</option>)}
           </select>
         </div>
         <div>
           <label className="block text-xs font-medium text-gray-600 mb-1">Type</label>
-          <select className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white"
+          <select className="sov-input"
             value={form.account_type} onChange={e => setForm(f => ({ ...f, account_type: e.target.value }))}>
             {ACCOUNT_TYPES.map(t => <option key={t}>{t}</option>)}
           </select>
         </div>
         <div className="col-span-2">
           <label className="block text-xs font-medium text-gray-600 mb-1">Provider</label>
-          <select className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white"
+          <select className="sov-input"
             value={form.provider} onChange={e => setForm(f => ({ ...f, provider: e.target.value }))}>
             {PROVIDERS.map(p => <option key={p}>{p}</option>)}
           </select>
@@ -152,7 +152,7 @@ function ConnectionPanel({ account }: { account: Account }) {
             <label className="block text-xs font-medium text-gray-600 mb-1">Key Pair</label>
             <select value={selectedPairId}
               onChange={e => setSelectedPairId(e.target.value === '' ? '' : Number(e.target.value))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white">
+              className="sov-input">
               <option value="">— use global app settings —</option>
               {(keyPairs ?? []).map(kp => (
                 <option key={kp.id} value={kp.id}>{kp.name}</option>
@@ -168,7 +168,7 @@ function ConnectionPanel({ account }: { account: Account }) {
               <input type="password" value={accessToken}
                 onChange={e => setAccessToken(e.target.value)}
                 placeholder="Leave blank to keep existing"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm" />
+                className="sov-input" />
             </div>
           )}
 
@@ -206,7 +206,7 @@ function AccountCard({ account, users, isEditing, onEdit, onCancelEdit, onSave, 
   userName: (userId: number) => string;
 }) {
   return (
-    <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+    <div className="sov-card overflow-hidden">
       {isEditing ? (
         <div className="p-5 border-b border-gray-100">
           <h2 className="text-base font-semibold text-gray-900 mb-4">Edit Account</h2>
@@ -322,7 +322,7 @@ export default function Manage() {
       </div>
 
       {showAdd && (
-        <div className="bg-white rounded-lg shadow-sm p-5 border border-blue-200">
+        <div className="sov-card p-5">
           <h2 className="text-base font-semibold text-gray-900 mb-4">New Account</h2>
           <AccountForm users={users ?? []} onSave={d => createMutation.mutate(d)} onCancel={() => setShowAdd(false)} />
         </div>

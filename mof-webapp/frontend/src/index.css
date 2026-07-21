@@ -48,12 +48,53 @@ code {
 @layer components {
   /* Hard-edged card with a heavy red top rule, like a poster panel. */
   .sov-card {
-    @apply bg-white border border-ink/10 rounded-none shadow-[4px_4px_0_0_rgba(26,21,18,0.12)];
+    @apply bg-white rounded-none;
+    border: 1px solid rgba(26, 21, 18, 0.1);
     border-top: 4px solid var(--red);
+    box-shadow: 4px 4px 0 0 rgba(26, 21, 18, 0.12);
   }
 
   /* Section banner: solid red block with condensed caps. */
   .sov-banner {
     @apply bg-blue-700 text-white font-display uppercase tracking-wider;
+  }
+
+  /* Table header row: red block, gold condensed caps — like a poster masthead. */
+  .sov-thead {
+    @apply bg-blue-700;
+  }
+  .sov-thead th {
+    @apply text-purple-200 font-display uppercase tracking-wider;
+  }
+
+  /* Sub-group header row inside a table (e.g. owner/category bands). */
+  .sov-group-row {
+    @apply bg-blue-50 border-y-2 border-blue-700;
+  }
+  .sov-group-row td {
+    @apply text-blue-800 font-display font-semibold uppercase tracking-widest;
+  }
+
+  /* Primary action button: solid red, hard edges, condensed caps. */
+  .sov-btn {
+    @apply inline-flex items-center gap-2 px-4 py-2 text-sm font-display font-semibold
+           uppercase tracking-wide rounded-none bg-blue-700 text-white
+           border-2 border-blue-700 transition-colors
+           hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  /* Secondary / outline button. */
+  .sov-btn-outline {
+    @apply inline-flex items-center gap-2 px-4 py-2 text-sm font-display font-semibold
+           uppercase tracking-wide rounded-none bg-transparent text-blue-800
+           border-2 border-blue-700 transition-colors
+           hover:bg-blue-50 disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  /* Form field: hard edges, thick border, red focus ring. */
+  .sov-input {
+    @apply w-full px-3 py-2 rounded-none border-2 bg-white text-sm
+           focus:border-blue-700 focus:outline-none focus:ring-0;
+    border-color: rgba(26, 21, 18, 0.2);
   }
 }

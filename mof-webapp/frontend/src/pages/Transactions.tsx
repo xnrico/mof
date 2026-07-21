@@ -107,7 +107,7 @@ export default function Transactions() {
         <select
           value={accountId}
           onChange={(e) => setAccountId(e.target.value === '' ? '' : Number(e.target.value))}
-          className="w-full sm:w-auto px-3 py-2 rounded-md border border-gray-300 text-sm bg-white"
+          className="sov-input w-full sm:w-auto"
         >
           <option value="">All accounts</option>
           {(accounts ?? []).map((a) => (
@@ -117,7 +117,7 @@ export default function Transactions() {
         <select
           value={category}
           onChange={(e) => setCategory(e.target.value)}
-          className="w-full sm:w-auto px-3 py-2 rounded-md border border-gray-300 text-sm bg-white"
+          className="sov-input w-full sm:w-auto"
         >
           <option value="">All categories</option>
           {CATEGORIES.map((c) => (
@@ -145,16 +145,16 @@ export default function Transactions() {
         </div>
       )}
 
-      <div className="bg-white rounded-lg shadow-sm overflow-x-auto">
+      <div className="sov-card overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
+          <thead className="sov-thead">
             <tr>
               {['Date', 'Description', 'Account', 'Category', 'Amount'].map((h) => (
-                <th key={h} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th key={h} className="px-4 py-3 text-left text-xs">
                   {h}
                 </th>
               ))}
-              <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap" title="Include this transaction in the spending pie / accounting">
+              <th className="px-4 py-3 text-center text-xs whitespace-nowrap" title="Include this transaction in the spending pie / accounting">
                 In accounting
               </th>
             </tr>

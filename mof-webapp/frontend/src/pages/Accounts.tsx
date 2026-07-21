@@ -132,7 +132,7 @@ export default function Accounts() {
               onClick={() => { setSyncAllMsg(''); syncAllMutation.mutate({}); }}
               disabled={syncAllMutation.isPending}
               title="Sync all accounts now"
-              className="inline-flex items-center gap-2 px-4 py-2 text-sm rounded-md bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="sov-btn"
             >
               <RefreshCcw className={`h-4 w-4 ${syncAllMutation.isPending ? 'animate-spin' : ''}`} />
               {syncAllMutation.isPending ? 'Syncing all…' : 'Sync All'}
@@ -141,7 +141,7 @@ export default function Accounts() {
               onClick={() => { setSyncAllMsg(''); syncAllMutation.mutate({ sinceDays: 89 }); }}
               disabled={syncAllMutation.isPending}
               title="Re-pull the last 90 days for every account (stays within the TrueLayer consent window that rejects older history)"
-              className="inline-flex items-center gap-2 px-4 py-2 text-sm rounded-md border border-blue-600 text-blue-700 hover:bg-blue-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="sov-btn-outline"
             >
               <RefreshCcw className={`h-4 w-4 ${syncAllMutation.isPending ? 'animate-spin' : ''}`} />
               Refresh 90d
@@ -154,7 +154,7 @@ export default function Accounts() {
               }}
               disabled={syncAllMutation.isPending}
               title="Re-pull full history and correct existing transactions"
-              className="inline-flex items-center gap-2 px-4 py-2 text-sm rounded-md border border-blue-600 text-blue-700 hover:bg-blue-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="sov-btn-outline"
             >
               <RefreshCcw className={`h-4 w-4 ${syncAllMutation.isPending ? 'animate-spin' : ''}`} />
               Full re-sync
@@ -172,12 +172,12 @@ export default function Accounts() {
       {isLoading ? (
         <p className="text-gray-500">Loading…</p>
       ) : (
-        <div className="bg-white rounded-lg shadow-sm overflow-x-auto">
+        <div className="sov-card overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+            <thead className="sov-thead">
               <tr>
                 {['Account', 'Type', 'Provider', 'Balance', 'Last Synced', ''].map((h) => (
-                  <th key={h} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th key={h} className="px-4 py-3 text-left text-xs">
                     {h}
                   </th>
                 ))}
@@ -185,11 +185,8 @@ export default function Accounts() {
             </thead>
             <tbody className="divide-y divide-gray-200">
               {groups.map((g) => [
-                <tr key={`hdr-${g.label}`} className="bg-gray-50">
-                  <td
-                    colSpan={6}
-                    className="px-4 py-2 text-xs font-semibold uppercase tracking-wider text-gray-500"
-                  >
+                <tr key={`hdr-${g.label}`} className="sov-group-row">
+                  <td colSpan={6} className="px-4 py-2 text-xs">
                     {g.label}
                   </td>
                 </tr>,
@@ -224,7 +221,7 @@ export default function Accounts() {
                           onClick={() => syncMutation.mutate(a.id)}
                           disabled={syncing || cooling}
                           title={cooling ? `Rate limit — wait ${secsLeft}s` : 'Sync account'}
-                          className="inline-flex items-center gap-1 px-3 py-1.5 text-sm rounded-md bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="sov-btn px-3 py-1.5"
                         >
                           <RefreshCw className={`h-4 w-4 ${syncing ? 'animate-spin' : ''}`} />
                           {syncing ? 'Syncing…' : cooling ? `${secsLeft}s` : 'Sync'}

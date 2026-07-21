@@ -110,7 +110,7 @@ function KeyPairsSection() {
   const PROVIDERS = Object.keys(providerFields ?? {}).filter(p => p !== 'Manual');
 
   return (
-    <div className="bg-white rounded-lg shadow-sm p-5 space-y-4">
+    <div className="sov-card p-5 space-y-4">
       {PROVIDERS.map(provider => {
         const fields = (providerFields ?? {})[provider] ?? [];
         const pairs = (keyPairs ?? []).filter(kp => kp.provider === provider);
