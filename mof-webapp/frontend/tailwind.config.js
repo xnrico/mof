@@ -12,9 +12,10 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        // Display: condensed constructivist caps. Body: clean sans.
+        // Display: condensed constructivist caps. Body: condensed sans so all
+        // ordinary text reads poster-like too (not the neutral Roboto).
         display: ['Oswald', 'Roboto Condensed', 'sans-serif'],
-        sans: ['Roboto', 'Roboto Condensed', 'system-ui', 'sans-serif'],
+        sans: ['Roboto Condensed', 'Oswald', 'system-ui', 'sans-serif'],
       },
       colors: {
         // Soviet red ramp (replaces blue as the primary accent everywhere).

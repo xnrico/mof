@@ -232,8 +232,8 @@ export default function Dashboard() {
           <div className="flex items-center gap-3">
             <Wallet className="h-8 w-8 text-blue-600" />
             <div>
-              <p className="text-sm text-gray-500">Total Balance ({displayCurrency})</p>
-              <div className="text-2xl font-bold text-gray-900">
+              <p className="text-sm sov-stat-label">Total Balance ({displayCurrency})</p>
+              <div className="text-2xl sov-stat-value text-gray-900">
                 {Object.keys(balancesByCurrency).length === 0
                   ? '—'
                   : formatCurrency(totalInDisplay, displayCurrency)}
@@ -252,8 +252,8 @@ export default function Dashboard() {
           <div className="flex items-center gap-3">
             <TrendingUp className="h-8 w-8 text-green-600" />
             <div>
-              <p className="text-sm text-gray-500">Salary ({displayCurrency})</p>
-              <p className="text-2xl font-bold text-gray-900">
+              <p className="text-sm sov-stat-label">Salary ({displayCurrency})</p>
+              <p className="text-2xl sov-stat-value text-gray-900">
                 {formatCurrency(monthSummary?.salary ?? 0, displayCurrency)}
               </p>
               <p className="text-xs text-gray-400 mt-0.5">salary received this month</p>
@@ -264,8 +264,8 @@ export default function Dashboard() {
           <div className="flex items-center gap-3">
             <TrendingUp className="h-8 w-8 text-emerald-500" />
             <div>
-              <p className="text-sm text-gray-500">Additional Income ({displayCurrency})</p>
-              <p className="text-2xl font-bold text-gray-900">
+              <p className="text-sm sov-stat-label">Additional Income ({displayCurrency})</p>
+              <p className="text-2xl sov-stat-value text-gray-900">
                 {formatCurrency(monthSummary?.additional_income ?? 0, displayCurrency)}
               </p>
               <p className="text-xs text-gray-400 mt-0.5">Income + Interest + Dividend</p>
@@ -274,8 +274,8 @@ export default function Dashboard() {
         </Card>
         <Card>
           <div>
-            <p className="text-sm text-gray-500">Accounts</p>
-            <p className="text-2xl font-bold text-gray-900">{accounts?.length ?? 0}</p>
+            <p className="text-sm sov-stat-label">Accounts</p>
+            <p className="text-2xl sov-stat-value text-gray-900">{accounts?.length ?? 0}</p>
           </div>
         </Card>
       </div>
@@ -325,20 +325,20 @@ export default function Dashboard() {
           <div className="space-y-4">
             <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">This month</p>
             <div>
-              <p className="text-sm text-gray-500">Total Income</p>
-              <p className="text-xl font-bold text-green-600">
+              <p className="text-sm sov-stat-label">Total Income</p>
+              <p className="text-xl sov-stat-value text-green-600">
                 {formatCurrency(monthSummary?.total_income ?? 0, displayCurrency)}
               </p>
             </div>
             <div>
-              <p className="text-sm text-gray-500">Total Spending</p>
-              <p className="text-xl font-bold text-red-600">
+              <p className="text-sm sov-stat-label">Total Spending</p>
+              <p className="text-xl sov-stat-value text-red-600">
                 {formatCurrency(monthSummary?.spending ?? 0, displayCurrency)}
               </p>
             </div>
             <div className="pt-2 border-t border-gray-100">
-              <p className="text-sm text-gray-500">Net</p>
-              <p className={`text-xl font-bold ${(monthSummary?.total_income ?? 0) - (monthSummary?.spending ?? 0) >= 0 ? 'text-gray-900' : 'text-red-600'}`}>
+              <p className="text-sm sov-stat-label">Net</p>
+              <p className={`text-xl sov-stat-value ${(monthSummary?.total_income ?? 0) - (monthSummary?.spending ?? 0) >= 0 ? 'text-gray-900' : 'text-red-600'}`}>
                 {formatCurrency((monthSummary?.total_income ?? 0) - (monthSummary?.spending ?? 0), displayCurrency)}
               </p>
             </div>

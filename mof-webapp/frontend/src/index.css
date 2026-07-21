@@ -13,7 +13,11 @@
 
 body {
   margin: 0;
-  font-family: 'Roboto', 'Roboto Condensed', system-ui, sans-serif;
+  /* Condensed constructivist body face so ALL ordinary text (tables, buttons,
+     card labels/values) reads poster-like, not just the headings. */
+  font-family: 'Roboto Condensed', 'Oswald', system-ui, sans-serif;
+  font-weight: 500;
+  letter-spacing: 0.01em;
   color: var(--ink);
   /* Aged paper with a faint constructivist diagonal texture. */
   background-color: var(--paper);
@@ -89,6 +93,17 @@ code {
            uppercase tracking-wide rounded-none bg-transparent text-blue-800
            border-2 border-blue-700 transition-colors
            hover:bg-blue-50 disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  /* Stat-card label: condensed uppercase caption (e.g. "Salary (GBP)"). */
+  .sov-stat-label {
+    @apply font-display uppercase tracking-wider;
+    color: rgba(26, 21, 18, 0.6);
+  }
+
+  /* Big stat value: heavy condensed numerals. */
+  .sov-stat-value {
+    @apply font-display font-bold tracking-wide;
   }
 
   /* Form field: hard edges, thick border, red focus ring. */
