@@ -13,6 +13,18 @@ def _naive_utc(dt: datetime) -> datetime:
     return dt
 
 
+def _parse_dt(raw: Optional[str]) -> Optional[datetime]:
+    """Parse a T212 ISO timestamp to naive UTC. Returns None for missing or
+    malformed values (e.g. an unfilled order with an empty dateCreated) so a
+    single bad row can't abort the whole fetch."""
+    if not raw:
+        return None
+    try:
+        return _naive_utc(datetime.fromisoformat(raw.replace("Z", "+00:00")))
+    except ValueError:
+        return None
+
+
 class Trading212Integration(BaseIntegration):
     """Trading 212 API integration for UK brokerage accounts"""
 
@@ -137,10 +149,11 @@ class Trading212Integration(BaseIntegration):
                     orders = payload.get("items", []) if isinstance(payload, dict) else payload
 
                     for order in orders:
-                        # Parse datetime
-                        created_at = _naive_utc(datetime.fromisoformat(
-                            order.get("dateCreated", "").replace("Z", "+00:00")
-                        ))
+                        # Parse datetime; skip rows without a usable date
+                        # (e.g. unfilled/cancelled orders with empty dateCreated).
+                        created_at = _parse_dt(order.get("dateCreated"))
+                        if created_at is None:
+                            continue
 
                         if start_date <= created_at <= end_date:
                             filled_quantity = float(order.get("filledQuantity", 0))
@@ -180,9 +193,9 @@ class Trading212Integration(BaseIntegration):
                     dividends = dividends_response.json()
 
                     for dividend in dividends.get("items", []):
-                        paid_on = _naive_utc(datetime.fromisoformat(
-                            dividend.get("paidOn", "").replace("Z", "+00:00")
-                        ))
+                        paid_on = _parse_dt(dividend.get("paidOn"))
+                        if paid_on is None:
+                            continue
 
                         if start_date <= paid_on <= end_date:
                             transactions.append(TransactionData(
@@ -203,8 +216,11 @@ class Trading212Integration(BaseIntegration):
 
             return transactions
         except Exception as e:
+            # Don't discard rows already collected — record the error so the
+            # sync reports "partial" and return what we have.
             print(f"Failed to fetch Trading 212 transactions: {e}")
-            return []
+            self.last_txn_error = f"transactions error: {e}"
+            return transactions
 
     # Sign convention: money leaving the account is negative, money in positive.
     _CASH_CATEGORY = {
@@ -270,10 +286,9 @@ class Trading212Integration(BaseIntegration):
         item (results are newest-first, so that means we can stop paging)."""
         keep_paging = True
         for item in items:
-            raw_dt = item.get("dateTime", "")
-            if not raw_dt:
+            when = _parse_dt(item.get("dateTime"))
+            if when is None:
                 continue
-            when = _naive_utc(datetime.fromisoformat(raw_dt.replace("Z", "+00:00")))
             if when < start_date:
                 keep_paging = False
                 continue
