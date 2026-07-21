@@ -83,10 +83,10 @@ export default function Dashboard() {
   // figures (salary, additional income, spending pie) come from this single
   // month window so they reconcile: total_income = salary + additional_income.
   const { data: monthSummary } = useQuery({
-    queryKey: ['month-summary', summaryUserIds, activeMonth.year, activeMonth.month],
+    queryKey: ['month-summary', summaryUserIds, activeMonth.year, activeMonth.month, displayCurrency],
     queryFn: async () => {
       const rows = await Promise.all(
-        summaryUserIds.map((id) => api.getMonthSummary(id, activeMonth.year, activeMonth.month, 'GBP'))
+        summaryUserIds.map((id) => api.getMonthSummary(id, activeMonth.year, activeMonth.month, displayCurrency))
       );
       const byCat: Record<string, CategorySummary> = {};
       let salary = 0, additional = 0, spending = 0;
@@ -253,7 +253,7 @@ export default function Dashboard() {
             <div>
               <p className="text-sm text-gray-500">Salary ({displayCurrency})</p>
               <p className="text-2xl font-bold text-gray-900">
-                {formatCurrency(toDisplay(monthSummary?.salary ?? 0, 'GBP'), displayCurrency)}
+                {formatCurrency(monthSummary?.salary ?? 0, displayCurrency)}
               </p>
               <p className="text-xs text-gray-400 mt-0.5">salary received this month</p>
             </div>
@@ -265,7 +265,7 @@ export default function Dashboard() {
             <div>
               <p className="text-sm text-gray-500">Additional Income ({displayCurrency})</p>
               <p className="text-2xl font-bold text-gray-900">
-                {formatCurrency(toDisplay(monthSummary?.additional_income ?? 0, 'GBP'), displayCurrency)}
+                {formatCurrency(monthSummary?.additional_income ?? 0, displayCurrency)}
               </p>
               <p className="text-xs text-gray-400 mt-0.5">Income + Interest + Dividend</p>
             </div>
@@ -282,7 +282,7 @@ export default function Dashboard() {
       {/* Spending by category + this month's totals */}
       <Card>
         <h2 className="text-lg font-semibold text-gray-900 mb-4">
-          Spending by Category (GBP)
+          Spending by Category ({displayCurrency})
           {(availableMonths?.find((m) => m.year === activeMonth.year && m.month === activeMonth.month)?.label) &&
             ` · ${availableMonths!.find((m) => m.year === activeMonth.year && m.month === activeMonth.month)!.label}`}
         </h2>
@@ -311,7 +311,7 @@ export default function Dashboard() {
                   <Tooltip
                     formatter={(v: number) => {
                       const pct = spendingTotal > 0 ? (v / spendingTotal) * 100 : 0;
-                      return [`${formatCurrency(v, 'GBP')} (${pct.toFixed(1)}%)`, ''];
+                      return [`${formatCurrency(v, displayCurrency)} (${pct.toFixed(1)}%)`, ''];
                     }}
                   />
                   <Legend />
@@ -326,19 +326,19 @@ export default function Dashboard() {
             <div>
               <p className="text-sm text-gray-500">Total Income</p>
               <p className="text-xl font-bold text-green-600">
-                {formatCurrency(toDisplay(monthSummary?.total_income ?? 0, 'GBP'), displayCurrency)}
+                {formatCurrency(monthSummary?.total_income ?? 0, displayCurrency)}
               </p>
             </div>
             <div>
               <p className="text-sm text-gray-500">Total Spending</p>
               <p className="text-xl font-bold text-red-600">
-                {formatCurrency(toDisplay(monthSummary?.spending ?? 0, 'GBP'), displayCurrency)}
+                {formatCurrency(monthSummary?.spending ?? 0, displayCurrency)}
               </p>
             </div>
             <div className="pt-2 border-t border-gray-100">
               <p className="text-sm text-gray-500">Net</p>
               <p className={`text-xl font-bold ${(monthSummary?.total_income ?? 0) - (monthSummary?.spending ?? 0) >= 0 ? 'text-gray-900' : 'text-red-600'}`}>
-                {formatCurrency(toDisplay((monthSummary?.total_income ?? 0) - (monthSummary?.spending ?? 0), 'GBP'), displayCurrency)}
+                {formatCurrency((monthSummary?.total_income ?? 0) - (monthSummary?.spending ?? 0), displayCurrency)}
               </p>
             </div>
           </div>

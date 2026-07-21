@@ -94,32 +94,6 @@ export const api = {
     return response.data;
   },
 
-  getCategorySummary: async (userId: number, params?: {
-    start_date?: string;
-    end_date?: string;
-    currency?: string;
-    expenses_only?: boolean;
-  }) => {
-    const response = await client.get('/transactions/summary/by-category', {
-      params: { user_id: userId, ...params }
-    });
-    return response.data;
-  },
-
-  getMonthlyIncome: async (userId: number, currency = 'GBP') => {
-    const response = await client.get('/transactions/summary/monthly-income', {
-      params: { user_id: userId, currency }
-    });
-    return response.data as MonthlyIncome;
-  },
-
-  getMonthTotals: async (userId: number, currency = 'GBP') => {
-    const response = await client.get('/transactions/summary/month-totals', {
-      params: { user_id: userId, currency }
-    });
-    return response.data as MonthTotals;
-  },
-
   getAvailableMonths: async (userId: number) => {
     const response = await client.get('/transactions/summary/available-months', {
       params: { user_id: userId }
@@ -316,20 +290,6 @@ export interface Transaction {
   category_override: string | null;
   is_hidden: boolean;
   include_in_accounting: boolean;
-}
-
-export interface MonthlyIncome {
-  salary: number;
-  additional_income: number;
-  total: number;
-  currency: string;
-}
-
-export interface MonthTotals {
-  income: number;
-  spending: number;
-  net: number;
-  currency: string;
 }
 
 export interface AvailableMonth {

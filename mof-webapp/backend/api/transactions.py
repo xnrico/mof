@@ -6,7 +6,7 @@ from pydantic import BaseModel
 from datetime import datetime
 
 from models.database import get_db
-from models.models import Transaction, Account, Category, Currency, IncomeSource
+from models.models import Transaction, Account, Category, Currency
 
 router = APIRouter()
 
@@ -217,132 +217,24 @@ async def get_summary_by_category(
     return list(summary.values())
 
 
-@router.get("/summary/monthly-income")
-async def get_monthly_income(
-    user_id: int,
-    currency: str = "GBP",
-    db: AsyncSession = Depends(get_db),
-):
-    """Monthly income breakdown for a user.
-
-    - salary: sum of this calendar month's Salary-category transactions
-      (actual synced pay), falling back to the user's latest monthly Salary
-      income source when there are no Salary transactions yet this month.
-    - additional_income: sum of this calendar month's transactions categorised
-      (effective category) as Income, Interest, or Dividend.
-    Both across the user's accounts, in the requested currency, counting only
-    rows with include_in_accounting = true.
-    """
-    now = datetime.now()
-    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-
-    accounts = (
-        await db.execute(select(Account).where(Account.user_id == user_id))
-    ).scalars().all()
-    account_ids = [a.id for a in accounts]
-
-    salary = 0.0
-    additional = 0.0
-    if account_ids:
-        txns = (
-            await db.execute(
-                select(Transaction).where(
-                    and_(
-                        Transaction.account_id.in_(account_ids),
-                        Transaction.is_hidden == False,
-                        Transaction.include_in_accounting == True,
-                        Transaction.currency == Currency(currency),
-                        Transaction.transaction_date >= month_start,
-                    )
-                )
-            )
-        ).scalars().all()
-        for t in txns:
-            cat = t.category_override if t.category_override else t.category
-            if cat == Category.SALARY:
-                salary += abs(t.amount)
-            elif cat in (Category.INCOME, Category.INTEREST, Category.DIVIDEND):
-                additional += abs(t.amount)
-
-    # Fall back to the configured monthly salary if none synced this month yet.
-    if salary == 0.0:
-        salary_row = (
-            await db.execute(
-                select(IncomeSource)
-                .where(
-                    IncomeSource.user_id == user_id,
-                    IncomeSource.is_active == True,
-                    IncomeSource.frequency == "monthly",
-                    func.lower(IncomeSource.name).contains("salary"),
-                )
-                .order_by(IncomeSource.id.desc())
-            )
-        ).scalars().first()
-        if salary_row:
-            salary = float(salary_row.amount)
-
-    return {
-        "salary": salary,
-        "additional_income": additional,
-        "total": salary + additional,
-        "currency": currency,
-    }
-
-
-@router.get("/summary/month-totals")
-async def get_month_totals(
-    user_id: int,
-    currency: str = "GBP",
-    db: AsyncSession = Depends(get_db),
-):
-    """This calendar month's total income and total spending for a user.
-
-    Income = sum of positive amounts, spending = sum of |negative amounts|,
-    across the user's accounts in the requested currency, counting only rows
-    with include_in_accounting = true.
-    """
-    accounts = (
-        await db.execute(select(Account).where(Account.user_id == user_id))
-    ).scalars().all()
-    account_ids = [a.id for a in accounts]
-
-    income = 0.0
-    spending = 0.0
-    if account_ids:
-        now = datetime.now()
-        month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-        txns = (
-            await db.execute(
-                select(Transaction).where(
-                    and_(
-                        Transaction.account_id.in_(account_ids),
-                        Transaction.is_hidden == False,
-                        Transaction.include_in_accounting == True,
-                        Transaction.currency == Currency(currency),
-                        Transaction.transaction_date >= month_start,
-                    )
-                )
-            )
-        ).scalars().all()
-        for t in txns:
-            if t.amount >= 0:
-                income += t.amount
-            else:
-                spending += -t.amount
-
-    return {
-        "income": income,
-        "spending": spending,
-        "net": income - spending,
-        "currency": currency,
-    }
-
-
 def _month_window(year: int, month: int) -> tuple[datetime, datetime]:
     """[start, end) datetimes for the given calendar month."""
     start = datetime(year, month, 1)
     end = datetime(year + 1, 1, 1) if month == 12 else datetime(year, month + 1, 1)
     return start, end
+
+
+def _make_converter(gbp_usd: float, target: str):
+    """Return f(amount, from_currency) -> amount in `target` currency."""
+    def convert(amount: float, from_currency: str) -> float:
+        if from_currency == target:
+            return amount
+        if from_currency == "GBP" and target == "USD":
+            return amount * gbp_usd
+        if from_currency == "USD" and target == "GBP":
+            return amount / gbp_usd if gbp_usd else amount
+        return amount  # unknown currency: leave as-is
+    return convert
 
 
 # Income category groupings (effective category).
@@ -403,7 +295,9 @@ async def get_month_summary(
     - spending: sum of |amount| for negative (expense) transactions.
     - by_category: expense breakdown [{category, total, count}] (positive mags).
 
-    Only rows with include_in_accounting = true in the requested currency count.
+    Transactions in ALL currencies are included and converted to `currency`
+    using the cached FX rate, so e.g. USD salary/spend still counts. Only rows
+    with include_in_accounting = true are counted.
     """
     accounts = (
         await db.execute(select(Account).where(Account.user_id == user_id))
@@ -417,6 +311,11 @@ async def get_month_summary(
     if not account_ids:
         return empty
 
+    # FX rate for converting non-target currencies into `currency`.
+    from services.fx_service import get_rates
+    rates = await get_rates(db)
+    convert = _make_converter(float(rates.get("GBP_USD") or 1.27), currency)
+
     start, end = _month_window(year, month)
     txns = (
         await db.execute(
@@ -425,7 +324,6 @@ async def get_month_summary(
                     Transaction.account_id.in_(account_ids),
                     Transaction.is_hidden == False,
                     Transaction.include_in_accounting == True,
-                    Transaction.currency == Currency(currency),
                     Transaction.transaction_date >= start,
                     Transaction.transaction_date < end,
                 )
@@ -438,15 +336,16 @@ async def get_month_summary(
     spending: dict = {}
     for t in txns:
         cat = t.category_override if t.category_override else t.category
+        amt = convert(abs(t.amount), t.currency.value if hasattr(t.currency, "value") else str(t.currency))
         if cat in _SALARY_CATS:
-            salary += abs(t.amount)
+            salary += amt
         elif cat in _ADDITIONAL_INCOME_CATS:
-            additional += abs(t.amount)
+            additional += amt
         # Spending pie: negative (expense) transactions only, positive magnitude.
         if t.amount < 0:
             cat_str = cat.value if hasattr(cat, "value") else str(cat)
             row = spending.get(cat_str) or {"category": cat_str, "total": 0.0, "count": 0}
-            row["total"] += abs(t.amount)
+            row["total"] += amt
             row["count"] += 1
             spending[cat_str] = row
 
