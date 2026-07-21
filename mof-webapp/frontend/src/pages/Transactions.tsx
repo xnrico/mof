@@ -92,7 +92,7 @@ export default function Transactions() {
       api.getTransactions({
         account_id: accountId === '' ? undefined : accountId,
         category: category || undefined,
-        limit: 200,
+        limit: 1000,
       }),
   });
 

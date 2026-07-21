@@ -69,7 +69,14 @@ async def list_transactions(
         query = query.where(Transaction.account_id == account_id)
 
     if category:
-        query = query.where(Transaction.category == Category(category))
+        # Filter on the EFFECTIVE category: category_override when set,
+        # otherwise the raw category. Filtering on category alone missed
+        # rows the UI shows under their override (and post-smart-categorise,
+        # most rows carry a real category only via override).
+        cat = Category(category)
+        query = query.where(
+            func.coalesce(Transaction.category_override, Transaction.category) == cat
+        )
 
     if start_date:
         query = query.where(Transaction.transaction_date >= start_date)
