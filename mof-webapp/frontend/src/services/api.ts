@@ -101,13 +101,17 @@ export const api = {
   },
 
   // Sync
-  syncAccount: async (accountId: number, full = false) => {
-    const response = await client.post(`/sync/account/${accountId}`, null, { params: { full } });
+  syncAccount: async (accountId: number, full = false, sinceDays?: number) => {
+    const params: Record<string, unknown> = { full };
+    if (sinceDays != null) params.since_days = sinceDays;
+    const response = await client.post(`/sync/account/${accountId}`, null, { params });
     return response.data;
   },
 
-  syncAllAccounts: async (full = false) => {
-    const response = await client.post('/sync/all', null, { params: { full } });
+  syncAllAccounts: async (full = false, sinceDays?: number) => {
+    const params: Record<string, unknown> = { full };
+    if (sinceDays != null) params.since_days = sinceDays;
+    const response = await client.post('/sync/all', null, { params });
     return response.data;
   },
 

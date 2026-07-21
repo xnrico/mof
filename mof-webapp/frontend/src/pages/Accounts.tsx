@@ -58,7 +58,8 @@ export default function Accounts() {
   });
 
   const syncAllMutation = useMutation({
-    mutationFn: (full: boolean = false) => api.syncAllAccounts(full) as Promise<SyncResult[]>,
+    mutationFn: (opts: { full?: boolean; sinceDays?: number } = {}) =>
+      api.syncAllAccounts(opts.full ?? false, opts.sinceDays) as Promise<SyncResult[]>,
     onSuccess: (results) => {
       const ok = results.filter((r) => r.success).length;
       const failed = results.length - ok;
@@ -128,7 +129,7 @@ export default function Accounts() {
         <div className="flex flex-col items-end gap-1">
           <div className="flex gap-2">
             <button
-              onClick={() => { setSyncAllMsg(''); syncAllMutation.mutate(false); }}
+              onClick={() => { setSyncAllMsg(''); syncAllMutation.mutate({}); }}
               disabled={syncAllMutation.isPending}
               title="Sync all accounts now"
               className="inline-flex items-center gap-2 px-4 py-2 text-sm rounded-md bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -137,9 +138,18 @@ export default function Accounts() {
               {syncAllMutation.isPending ? 'Syncing all…' : 'Sync All'}
             </button>
             <button
+              onClick={() => { setSyncAllMsg(''); syncAllMutation.mutate({ sinceDays: 89 }); }}
+              disabled={syncAllMutation.isPending}
+              title="Re-pull the last 90 days for every account (stays within the TrueLayer consent window that rejects older history)"
+              className="inline-flex items-center gap-2 px-4 py-2 text-sm rounded-md border border-blue-600 text-blue-700 hover:bg-blue-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <RefreshCcw className={`h-4 w-4 ${syncAllMutation.isPending ? 'animate-spin' : ''}`} />
+              Refresh 90d
+            </button>
+            <button
               onClick={() => {
-                if (window.confirm('Full re-sync re-pulls full history for every account and corrects existing transactions (e.g. card signs). Continue?')) {
-                  setSyncAllMsg(''); syncAllMutation.mutate(true);
+                if (window.confirm('Full re-sync re-pulls full history for every account and corrects existing transactions (e.g. card signs). Some banks reject history older than 90 days — use "Refresh 90d" for those. Continue?')) {
+                  setSyncAllMsg(''); syncAllMutation.mutate({ full: true });
                 }
               }}
               disabled={syncAllMutation.isPending}
