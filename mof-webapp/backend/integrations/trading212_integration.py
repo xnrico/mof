@@ -1,6 +1,6 @@
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timedelta, timezone
-from urllib.parse import urlsplit
+from urllib.parse import urlsplit, parse_qsl
 import base64
 import httpx
 from .base import BaseIntegration, TransactionData, AccountData
@@ -202,7 +202,7 @@ class Trading212Integration(BaseIntegration):
                                 external_id=f"DIV-{dividend.get('reference', '')}",
                                 description=f"Dividend from {dividend.get('ticker', 'STOCK')}",
                                 amount=float(dividend.get("amount", 0)),
-                                currency=dividend.get("amountInEuro", {}).get("currency", "GBP"),
+                                currency="GBP",  # Trading 212 UK settles in GBP
                                 date=paid_on,
                                 merchant_name="Trading 212",
                                 category="Dividend",
@@ -243,14 +243,18 @@ class Trading212Integration(BaseIntegration):
         """
         # T212 rejects `time` without `cursorId` (and vice versa). So the first
         # request sends neither (newest-first, default window) and we then follow
-        # nextPagePath verbatim — it carries a self-consistent cursor+time pair.
+        # nextPagePath — it carries a self-consistent cursor+time pair. The path's
+        # `time` param is an ISO timestamp whose ':' chars must be percent-encoded,
+        # so we split it into path + params and let httpx encode the query rather
+        # than concatenating a raw string (which httpx misreads as host:port).
         origin = urlsplit(self.base_url)
         base_origin = f"{origin.scheme}://{origin.netloc}"
-        url: Optional[str] = f"{self.base_url}/equity/history/transactions?limit=50"
+        url: str = f"{self.base_url}/equity/history/transactions"
+        params: Optional[dict] = {"limit": 50}
         try:
             for _ in range(40):  # hard page cap (40 * 50 = 2000 movements)
                 resp = await client.get(
-                    url, headers={"Authorization": self._auth_header}
+                    url, params=params, headers={"Authorization": self._auth_header}
                 )
                 if resp.status_code == 429:
                     self.last_txn_error = (
@@ -271,7 +275,11 @@ class Trading212Integration(BaseIntegration):
                 next_path = payload.get("nextPagePath") if isinstance(payload, dict) else None
                 if not next_path or not items:
                     break
-                url = next_path if next_path.startswith("http") else f"{base_origin}{next_path}"
+                # Split path from query; pass the query as params so httpx encodes it.
+                split = urlsplit(next_path)
+                path = split.path
+                url = path if path.startswith("http") else f"{base_origin}{path}"
+                params = dict(parse_qsl(split.query)) or None
         except Exception as e:
             self.last_txn_error = str(e)
 
