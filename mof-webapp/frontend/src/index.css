@@ -2,16 +2,58 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ---- Soviet constructivist theme ---------------------------------------- */
+
+:root {
+  --paper: #f4efe6;
+  --ink: #1a1512;
+  --red: #a01410;
+  --gold: #c8901a;
+}
+
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
+  font-family: 'Roboto', 'Roboto Condensed', system-ui, sans-serif;
+  color: var(--ink);
+  /* Aged paper with a faint constructivist diagonal texture. */
+  background-color: var(--paper);
+  background-image:
+    repeating-linear-gradient(
+      45deg,
+      rgba(160, 20, 16, 0.03) 0px,
+      rgba(160, 20, 16, 0.03) 2px,
+      transparent 2px,
+      transparent 22px
+    );
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Condensed uppercase display type for headings — poster-like. */
+h1, h2, h3, .font-display {
+  font-family: 'Oswald', 'Roboto Condensed', sans-serif;
+  letter-spacing: 0.02em;
+}
+
+h1 {
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
 code {
-  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
-    monospace;
+  font-family: 'Roboto Mono', Menlo, Monaco, Consolas, monospace;
+}
+
+/* Reusable constructivist utilities. */
+@layer components {
+  /* Hard-edged card with a heavy red top rule, like a poster panel. */
+  .sov-card {
+    @apply bg-white border border-ink/10 rounded-none shadow-[4px_4px_0_0_rgba(26,21,18,0.12)];
+    border-top: 4px solid var(--red);
+  }
+
+  /* Section banner: solid red block with condensed caps. */
+  .sov-banner {
+    @apply bg-blue-700 text-white font-display uppercase tracking-wider;
+  }
 }

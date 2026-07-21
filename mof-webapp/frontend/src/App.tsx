@@ -1,6 +1,6 @@
 import { BrowserRouter as Router, Routes, Route, NavLink } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { DollarSign, CreditCard, List, Settings as SettingsIcon, Wrench } from 'lucide-react';
+import { Star, DollarSign, CreditCard, List, Settings as SettingsIcon, Wrench } from 'lucide-react';
 import Dashboard from './pages/Dashboard';
 import Accounts from './pages/Accounts';
 import Transactions from './pages/Transactions';
@@ -22,29 +22,29 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <Router>
-        <div className="min-h-screen bg-gray-50">
-          {/* Navigation */}
-          <nav className="bg-white shadow-sm">
+        <div className="min-h-screen">
+          {/* Navigation — Soviet poster header: solid red bar, gold rule, star */}
+          <nav className="bg-blue-700 text-white border-b-4 border-purple-500">
             <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
               <div className="flex items-center justify-between gap-2 h-16">
                 <div className="flex-shrink-0 flex items-center min-w-0">
-                  <DollarSign className="h-7 w-7 sm:h-8 sm:w-8 text-blue-600 flex-shrink-0" />
-                  <span className="ml-2 text-base sm:text-xl font-bold text-gray-900 truncate">
+                  <Star className="h-7 w-7 sm:h-8 sm:w-8 text-purple-300 fill-purple-400 flex-shrink-0" />
+                  <span className="ml-2 text-lg sm:text-2xl font-display font-bold uppercase tracking-widest truncate">
                     <span className="hidden sm:inline">Ministry of Finance</span>
                     <span className="sm:hidden">MoF</span>
                   </span>
                 </div>
-                <div className="flex items-center gap-1 sm:gap-6 overflow-x-auto">
+                <div className="flex items-center gap-1 sm:gap-4 overflow-x-auto">
                   {navItems.map(({ to, label, icon: Icon, end }) => (
                     <NavLink
                       key={to}
                       to={to}
                       end={end}
                       className={({ isActive }) =>
-                        `inline-flex flex-col sm:flex-row items-center px-2 sm:px-1 py-1 sm:pt-1 border-b-2 text-xs sm:text-sm font-medium flex-shrink-0 ${
+                        `inline-flex flex-col sm:flex-row items-center px-2 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-sm font-display font-semibold uppercase tracking-wide flex-shrink-0 transition-colors ${
                           isActive
-                            ? 'border-blue-500 text-gray-900'
-                            : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+                            ? 'bg-purple-400 text-ink'
+                            : 'text-red-100 hover:bg-blue-600 hover:text-white'
                         }`
                       }
                     >

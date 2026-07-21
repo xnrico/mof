@@ -5,14 +5,15 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recha
 import { Wallet, TrendingUp } from 'lucide-react';
 import { api, formatCurrency, User, Account, CategorySummary } from '../services/api';
 
+// Soviet-poster palette: reds, propaganda gold, ink, and muted earth tones.
 const COLORS = [
-  '#2563eb', '#16a34a', '#dc2626', '#d97706', '#7c3aed',
-  '#0891b2', '#db2777', '#65a30d', '#ea580c', '#4f46e5',
-  '#0d9488', '#be123c', '#a16207', '#475569',
+  '#a01410', '#c8901a', '#7d0f0c', '#e0a92a', '#5c0b09',
+  '#8a6d3b', '#c1201a', '#a67214', '#3d0706', '#d23f3f',
+  '#6b4f1d', '#835811', '#1a1512', '#b0522b',
 ];
 
 function Card({ children }: { children: ReactNode }) {
-  return <div className="bg-white rounded-lg shadow-sm p-6">{children}</div>;
+  return <div className="sov-card p-6">{children}</div>;
 }
 
 const DAIXU = 'daixu';
