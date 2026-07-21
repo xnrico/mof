@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_
+from sqlalchemy import select, and_, or_, func
 from typing import List
 from pydantic import BaseModel
 from datetime import datetime
@@ -33,6 +33,15 @@ class TransactionUpdate(BaseModel):
     category_override: str | None = None
     notes: str | None = None
     is_hidden: bool | None = None
+
+
+class BulkCategorizeRequest(BaseModel):
+    vendor_key: str   # matched case-insensitively against merchant_name or description
+    category: str
+
+
+class BulkCategorizeResponse(BaseModel):
+    updated: int
 
 
 class TransactionSummary(BaseModel):
@@ -108,16 +117,53 @@ async def update_transaction(
     return transaction
 
 
+@router.post("/bulk-categorize", response_model=BulkCategorizeResponse)
+async def bulk_categorize(
+    body: BulkCategorizeRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """Set category_override on every transaction whose merchant_name or
+    description contains vendor_key (case-insensitive)."""
+    try:
+        cat = Category(body.category)
+    except ValueError:
+        raise HTTPException(400, f"Unknown category: {body.category}")
+
+    key = body.vendor_key.strip()
+    if not key:
+        raise HTTPException(400, "vendor_key must not be empty")
+
+    result = await db.execute(
+        select(Transaction).where(
+            or_(
+                func.lower(Transaction.merchant_name).contains(key.lower()),
+                func.lower(Transaction.description).contains(key.lower()),
+            )
+        )
+    )
+    txns = result.scalars().all()
+    for t in txns:
+        t.category_override = cat
+    await db.commit()
+    return {"updated": len(txns)}
+
+
 @router.get("/summary/by-category")
 async def get_summary_by_category(
     user_id: int,
     start_date: datetime | None = None,
     end_date: datetime | None = None,
     currency: str = "GBP",
+    expenses_only: bool = False,
     db: AsyncSession = Depends(get_db)
 ):
-    """Get transaction summary grouped by category"""
-    # Get all accounts for user
+    """Get transaction summary grouped by effective category.
+
+    When expenses_only=true, only negative-amount transactions are included
+    and totals are returned as positive magnitudes — suitable for a spending
+    pie chart. When false, all transactions are included and totals reflect
+    net signed amounts (income positive, spending negative).
+    """
     accounts_result = await db.execute(
         select(Account).where(Account.user_id == user_id)
     )
@@ -127,34 +173,32 @@ async def get_summary_by_category(
     if not account_ids:
         return []
 
-    # Build query
-    query = select(Transaction).where(
-        and_(
-            Transaction.account_id.in_(account_ids),
-            Transaction.is_hidden == False,
-            Transaction.currency == Currency(currency)
-        )
-    )
+    conditions = [
+        Transaction.account_id.in_(account_ids),
+        Transaction.is_hidden == False,
+        Transaction.currency == Currency(currency),
+    ]
+    if expenses_only:
+        conditions.append(Transaction.amount < 0)
 
+    query = select(Transaction).where(and_(*conditions))
     if start_date:
         query = query.where(Transaction.transaction_date >= start_date)
-
     if end_date:
         query = query.where(Transaction.transaction_date <= end_date)
 
     result = await db.execute(query)
     transactions = result.scalars().all()
 
-    # Group by category
-    summary = {}
+    summary: dict = {}
     for txn in transactions:
         cat = txn.category_override if txn.category_override else txn.category
-        cat_str = cat.value if hasattr(cat, 'value') else str(cat)
-
+        cat_str = cat.value if hasattr(cat, "value") else str(cat)
         if cat_str not in summary:
             summary[cat_str] = {"category": cat_str, "total": 0.0, "count": 0}
-
-        summary[cat_str]["total"] += txn.amount
+        # expenses_only: store positive magnitude; otherwise store signed amount
+        amount = abs(txn.amount) if expenses_only else txn.amount
+        summary[cat_str]["total"] += amount
         summary[cat_str]["count"] += 1
 
     return list(summary.values())

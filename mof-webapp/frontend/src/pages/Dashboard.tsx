@@ -71,7 +71,7 @@ export default function Dashboard() {
     queryKey: ['summary', summaryUserIds],
     queryFn: async () => {
       const lists = await Promise.all(
-        summaryUserIds.map((id) => api.getCategorySummary(id, { currency: 'GBP' }))
+        summaryUserIds.map((id) => api.getCategorySummary(id, { currency: 'GBP', expenses_only: true }))
       );
       // Merge category rows across users
       const merged: Record<string, CategorySummary> = {};
@@ -111,8 +111,9 @@ export default function Dashboard() {
     .reduce((sum, i) => sum + i.amount, 0);
 
   const chartData = (summary ?? [])
-    .filter((s) => s.total > 0)
-    .map((s) => ({ name: s.category, value: Math.abs(s.total) }));
+    .filter((s) => s.total > 0.01)  // drop near-zero rounding noise
+    .sort((a, b) => b.total - a.total)
+    .map((s) => ({ name: s.category, value: Math.round(s.total * 100) / 100 }));
 
   return (
     <div className="px-4 py-6 space-y-6">

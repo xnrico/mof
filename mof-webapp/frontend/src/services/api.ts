@@ -84,8 +84,13 @@ export const api = {
     return response.data;
   },
 
-  updateTransaction: async (transactionId: number, data: any) => {
+  updateTransaction: async (transactionId: number, data: { category_override?: string; notes?: string; is_hidden?: boolean }) => {
     const response = await client.patch(`/transactions/${transactionId}`, data);
+    return response.data;
+  },
+
+  bulkCategorize: async (vendorKey: string, category: string): Promise<{ updated: number }> => {
+    const response = await client.post('/transactions/bulk-categorize', { vendor_key: vendorKey, category });
     return response.data;
   },
 
@@ -93,6 +98,7 @@ export const api = {
     start_date?: string;
     end_date?: string;
     currency?: string;
+    expenses_only?: boolean;
   }) => {
     const response = await client.get('/transactions/summary/by-category', {
       params: { user_id: userId, ...params }

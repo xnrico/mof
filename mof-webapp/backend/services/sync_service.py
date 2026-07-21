@@ -14,6 +14,7 @@ from integrations import IntegrationFactory
 from config import settings
 from services import provider_settings
 import json
+import re
 
 
 class SyncService:
@@ -128,7 +129,7 @@ class SyncService:
                         description=txn_data.description,
                         amount=txn_data.amount,
                         currency=self._map_currency(txn_data.currency, account.currency),
-                        category=self._map_category(txn_data.category),
+                        category=self._smart_category(txn_data.description, txn_data.merchant_name),
                         transaction_date=self._naive_utc(txn_data.date),
                         merchant_name=txn_data.merchant_name,
                     )
@@ -324,32 +325,176 @@ class SyncService:
         except ValueError:
             return default
 
+    # ---------------------------------------------------------------------------
+    # Smart categorisation
+    # ---------------------------------------------------------------------------
+
+    # Keyword → Category mapping.  Checked in order; first match wins.
+    # Keys are lowercased substrings matched against description + merchant_name.
+    _CATEGORY_RULES: list[tuple[str, Category]] = [
+        # ── Income / gains ──────────────────────────────────────────────────
+        ("salary",          Category.SALARY),
+        ("payroll",         Category.SALARY),
+        ("wages",           Category.SALARY),
+        ("payslip",         Category.SALARY),
+        ("dividend",        Category.DIVIDEND),
+        ("interest",        Category.INTEREST),
+        ("interest_on_free_cash", Category.INTEREST),
+        ("cashback",        Category.INTEREST),
+        ("investment gain", Category.INVESTMENT_GAIN),
+        ("capital gain",    Category.INVESTMENT_GAIN),
+        ("investment loss", Category.INVESTMENT_LOSS),
+        # ── Groceries / supermarkets ─────────────────────────────────────────
+        ("tesco",           Category.GROCERY),
+        ("sainsbury",       Category.GROCERY),
+        ("waitrose",        Category.GROCERY),
+        ("asda",            Category.GROCERY),
+        ("morrisons",       Category.GROCERY),
+        ("lidl",            Category.GROCERY),
+        ("aldi",            Category.GROCERY),
+        ("ocado",           Category.GROCERY),
+        ("m&s food",        Category.GROCERY),
+        ("marks & spencer food", Category.GROCERY),
+        ("whole foods",     Category.GROCERY),
+        ("costco",          Category.GROCERY),
+        ("co-op",           Category.GROCERY),
+        ("grocery",         Category.GROCERY),
+        ("groceries",       Category.GROCERY),
+        ("supermarket",     Category.GROCERY),
+        # ── Food & drink (restaurants/cafes) ────────────────────────────────
+        ("mcdonald",        Category.FOOD),
+        ("kfc",             Category.FOOD),
+        ("burger king",     Category.FOOD),
+        ("subway",          Category.FOOD),
+        ("starbucks",       Category.FOOD),
+        ("costa",           Category.FOOD),
+        ("pret",            Category.FOOD),
+        ("greggs",          Category.FOOD),
+        ("deliveroo",       Category.FOOD),
+        ("just eat",        Category.FOOD),
+        ("ubereats",        Category.FOOD),
+        ("uber eats",       Category.FOOD),
+        ("pizza",           Category.FOOD),
+        ("restaurant",      Category.FOOD),
+        ("cafe",            Category.FOOD),
+        ("coffee",          Category.FOOD),
+        ("takeaway",        Category.FOOD),
+        ("food",            Category.FOOD),
+        # ── Transport ────────────────────────────────────────────────────────
+        ("uber",            Category.TRANSPORT),
+        ("lyft",            Category.TRANSPORT),
+        ("bolt",            Category.TRANSPORT),
+        ("taxi",            Category.TRANSPORT),
+        ("tfl",             Category.TRANSPORT),
+        ("oyster",          Category.TRANSPORT),
+        ("trainline",       Category.TRANSPORT),
+        ("national rail",   Category.TRANSPORT),
+        ("eurostar",        Category.TRANSPORT),
+        ("ryanair",         Category.TRANSPORT),
+        ("easyjet",         Category.TRANSPORT),
+        ("british airways", Category.TRANSPORT),
+        ("emirates",        Category.TRANSPORT),
+        ("petrol",          Category.TRANSPORT),
+        ("fuel",            Category.TRANSPORT),
+        ("parking",         Category.TRANSPORT),
+        ("toll",            Category.TRANSPORT),
+        ("transport",       Category.TRANSPORT),
+        ("transit",         Category.TRANSPORT),
+        ("bus",             Category.TRANSPORT),
+        # ── Housing / utilities ──────────────────────────────────────────────
+        ("rent",            Category.HOUSING),
+        ("mortgage",        Category.HOUSING),
+        ("council tax",     Category.HOUSING),
+        ("rates",           Category.HOUSING),
+        ("electricity",     Category.HOUSING),
+        ("gas",             Category.HOUSING),
+        ("water",           Category.HOUSING),
+        ("broadband",       Category.HOUSING),
+        ("internet",        Category.HOUSING),
+        ("bt group",        Category.HOUSING),
+        ("virgin media",    Category.HOUSING),
+        ("sky broadband",   Category.HOUSING),
+        ("landlord",        Category.HOUSING),
+        ("property",        Category.HOUSING),
+        ("letting",         Category.HOUSING),
+        # ── Subscriptions ────────────────────────────────────────────────────
+        ("netflix",         Category.SUBSCRIPTIONS),
+        ("spotify",         Category.SUBSCRIPTIONS),
+        ("apple",           Category.SUBSCRIPTIONS),
+        ("amazon prime",    Category.SUBSCRIPTIONS),
+        ("disney",          Category.SUBSCRIPTIONS),
+        ("hbo",             Category.SUBSCRIPTIONS),
+        ("youtube premium", Category.SUBSCRIPTIONS),
+        ("google one",      Category.SUBSCRIPTIONS),
+        ("microsoft 365",   Category.SUBSCRIPTIONS),
+        ("dropbox",         Category.SUBSCRIPTIONS),
+        ("adobe",           Category.SUBSCRIPTIONS),
+        ("chatgpt",         Category.SUBSCRIPTIONS),
+        ("openai",          Category.SUBSCRIPTIONS),
+        ("anthropic",       Category.SUBSCRIPTIONS),
+        ("github",          Category.SUBSCRIPTIONS),
+        ("subscription",    Category.SUBSCRIPTIONS),
+        # ── Entertainment ─────────────────────────────────────────────────────
+        ("cinema",          Category.ENTERTAINMENT),
+        ("odeon",           Category.ENTERTAINMENT),
+        ("vue",             Category.ENTERTAINMENT),
+        ("cineworld",       Category.ENTERTAINMENT),
+        ("theatre",         Category.ENTERTAINMENT),
+        ("concert",         Category.ENTERTAINMENT),
+        ("ticketmaster",    Category.ENTERTAINMENT),
+        ("steam",           Category.ENTERTAINMENT),
+        ("playstation",     Category.ENTERTAINMENT),
+        ("xbox",            Category.ENTERTAINMENT),
+        ("nintendo",        Category.ENTERTAINMENT),
+        ("entertainment",   Category.ENTERTAINMENT),
+        # ── Tourism / travel ──────────────────────────────────────────────────
+        ("hotel",           Category.TOURISM),
+        ("airbnb",          Category.TOURISM),
+        ("booking.com",     Category.TOURISM),
+        ("expedia",         Category.TOURISM),
+        ("holiday",         Category.TOURISM),
+        ("travel",          Category.TOURISM),
+        # ── Investment ───────────────────────────────────────────────────────
+        ("trading 212",     Category.INVESTMENT),
+        ("trading212",      Category.INVESTMENT),
+        ("vanguard",        Category.INVESTMENT),
+        ("freetrade",       Category.INVESTMENT),
+        ("hargreaves lansdown", Category.INVESTMENT),
+        ("investment",      Category.INVESTMENT),
+        ("isa",             Category.INVESTMENT),
+        ("pension",         Category.INVESTMENT),
+        ("stocks",          Category.INVESTMENT),
+        ("shares",          Category.INVESTMENT),
+    ]
+
     def _map_category(self, external_category: Optional[str]) -> Category:
-        """Map external category to internal Category enum"""
+        """Map an external description/category string to an internal Category.
+
+        Checks the _CATEGORY_RULES list (first match wins) against the
+        lowercased input, matching each keyword on word boundaries so short
+        keywords don't collide inside longer words (e.g. "tfl" must not match
+        "neTFLix"). Falls back to OTHER if nothing matches.
+        """
         if not external_category:
             return Category.OTHER
+        text = external_category.lower()
+        for keyword, cat in self._CATEGORY_RULES:
+            # \b around the keyword; keyword may contain regex-special chars
+            # (e.g. "m&s food", "co-op", "booking.com") so escape it.
+            if re.search(rf"\b{re.escape(keyword)}\b", text):
+                return cat
+        return Category.OTHER
 
-        # Simple mapping - can be enhanced
-        category_map = {
-            "food": Category.FOOD,
-            "grocery": Category.GROCERY,
-            "groceries": Category.GROCERY,
-            "transportation": Category.TRANSPORT,
-            "travel": Category.TRANSPORT,
-            "rent": Category.HOUSING,
-            "mortgage": Category.HOUSING,
-            "entertainment": Category.ENTERTAINMENT,
-            "recreation": Category.ENTERTAINMENT,
-            "subscription": Category.SUBSCRIPTIONS,
-            "income": Category.SALARY,
-            "dividend": Category.DIVIDEND,
-            "interest": Category.INTEREST,
-            "investment": Category.INVESTMENT,
-        }
+    def _smart_category(
+        self, description: Optional[str], merchant: Optional[str]
+    ) -> Category:
+        """Derive a category from transaction description and merchant name.
 
-        external_lower = external_category.lower()
-        for key, value in category_map.items():
-            if key in external_lower:
-                return value
-
+        Tries merchant_name first (more reliable), then description.
+        """
+        for text in (merchant, description):
+            if text:
+                cat = self._map_category(text)
+                if cat != Category.OTHER:
+                    return cat
         return Category.OTHER

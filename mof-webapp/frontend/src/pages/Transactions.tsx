@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api, formatCurrency, Account, Transaction } from '../services/api';
 
 const CATEGORIES = [
@@ -8,15 +8,59 @@ const CATEGORIES = [
   'Investment Loss', 'Dividend', 'Interest', 'Other',
 ];
 
+// The "vendor key" used to find similar transactions: prefer merchant name,
+// fall back to the description. Kept short so near-identical vendor strings
+// (e.g. "TESCO STORES 1234") still match on the common prefix.
+function vendorKey(t: Transaction): string {
+  const base = (t.merchant_name || t.description || '').trim();
+  // Take the first few words — enough to identify the vendor without the
+  // trailing store/reference numbers that vary per transaction.
+  return base.split(/\s+/).slice(0, 2).join(' ');
+}
+
 export default function Transactions() {
+  const queryClient = useQueryClient();
   const [accountId, setAccountId] = useState<number | ''>('');
   const [category, setCategory] = useState<string>('');
   const [primaryCurrency, setPrimaryCurrency] = useState<'GBP' | 'USD'>('GBP');
+  // Transaction id → vendor key, shown while its "apply to similar" prompt is up.
+  const [applyPrompt, setApplyPrompt] = useState<Record<number, string>>({});
+  const [bulkMsg, setBulkMsg] = useState('');
 
   const { data: accounts } = useQuery<Account[]>({
     queryKey: ['accounts', 'all'],
     queryFn: () => api.getAccounts(),
   });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, category }: { id: number; category: string }) =>
+      api.updateTransaction(id, { category_override: category }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['transactions'] }),
+  });
+
+  const bulkMutation = useMutation({
+    mutationFn: ({ key, category }: { key: string; category: string }) =>
+      api.bulkCategorize(key, category),
+    onSuccess: (res) => {
+      setBulkMsg(`✓ Applied to ${res.updated} matching transaction${res.updated === 1 ? '' : 's'}`);
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['summary'] });
+      setTimeout(() => setBulkMsg(''), 4000);
+    },
+  });
+
+  function handleCategoryChange(t: Transaction, newCategory: string) {
+    updateMutation.mutate({ id: t.id, category: newCategory });
+    // Offer to apply this category to similar vendors.
+    const key = vendorKey(t);
+    if (key) setApplyPrompt((p) => ({ ...p, [t.id]: key }));
+  }
+
+  function applyToSimilar(t: Transaction, newCategory: string) {
+    const key = applyPrompt[t.id];
+    if (key) bulkMutation.mutate({ key, category: newCategory });
+    setApplyPrompt((p) => { const n = { ...p }; delete n[t.id]; return n; });
+  }
 
   const { data: fx } = useQuery({
     queryKey: ['fx-rates'],
@@ -86,6 +130,12 @@ export default function Transactions() {
         </div>
       </div>
 
+      {bulkMsg && (
+        <div className="text-sm text-green-600 bg-green-50 border border-green-200 rounded-md px-3 py-2">
+          {bulkMsg}
+        </div>
+      )}
+
       <div className="bg-white rounded-lg shadow-sm overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
@@ -107,6 +157,7 @@ export default function Transactions() {
             ) : (
               (transactions ?? []).map((t) => {
                 const cat = t.category_override ?? t.category;
+                const promptKey = applyPrompt[t.id];
                 return (
                   <tr key={t.id}>
                     <td className="px-4 py-3 text-sm text-gray-500 whitespace-nowrap">
@@ -117,7 +168,34 @@ export default function Transactions() {
                       {t.merchant_name && <div className="text-xs text-gray-500">{t.merchant_name}</div>}
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-700">{accountName(t.account_id)}</td>
-                    <td className="px-4 py-3 text-sm text-gray-700">{cat}</td>
+                    <td className="px-4 py-3 text-sm text-gray-700">
+                      <select
+                        value={cat}
+                        onChange={(e) => handleCategoryChange(t, e.target.value)}
+                        className="px-2 py-1 rounded-md border border-gray-300 text-sm bg-white max-w-[9rem]"
+                      >
+                        {CATEGORIES.map((c) => (
+                          <option key={c} value={c}>{c}</option>
+                        ))}
+                      </select>
+                      {promptKey && (
+                        <div className="mt-1 flex items-center gap-1.5">
+                          <button
+                            onClick={() => applyToSimilar(t, cat)}
+                            className="text-xs px-2 py-0.5 rounded bg-blue-600 text-white hover:bg-blue-700"
+                            title={`Apply "${cat}" to all transactions matching "${promptKey}"`}
+                          >
+                            Apply to “{promptKey}”
+                          </button>
+                          <button
+                            onClick={() => setApplyPrompt((p) => { const n = { ...p }; delete n[t.id]; return n; })}
+                            className="text-xs text-gray-400 hover:text-gray-600"
+                          >
+                            Dismiss
+                          </button>
+                        </div>
+                      )}
+                    </td>
                     <td className={`px-4 py-3 text-sm font-medium text-right ${t.amount < 0 ? 'text-red-600' : 'text-gray-900'}`}>
                       {formatCurrency(toPrimary(t.amount, t.currency), primaryCurrency)}
                       {t.currency !== primaryCurrency && (
