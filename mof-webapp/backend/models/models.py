@@ -1,4 +1,4 @@
-from sqlalchemy import String, Float, DateTime, ForeignKey, Enum as SQLEnum, Text, Boolean
+from sqlalchemy import String, Float, DateTime, ForeignKey, Enum as SQLEnum, Text, Boolean, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from datetime import datetime
 from typing import Optional, List
@@ -39,11 +39,9 @@ class AccountType(str, enum.Enum):
 
 class IntegrationProvider(str, enum.Enum):
     PLAID = "Plaid"
-    GOCARDLESS = "GoCardless"
     TRUELAYER = "TrueLayer"
     IBKR = "IBKR"
     TRADING212 = "Trading212"
-    SOPHTRON = "Sophtron"
     MANUAL = "Manual"
 
 
@@ -95,12 +93,20 @@ class Account(Base):
 
 class Transaction(Base):
     __tablename__ = "transactions"
+    # External ids are only unique within an account: one Trading212 API key
+    # per equity means two accounts can surface the same external id.
+    __table_args__ = (
+        UniqueConstraint(
+            "account_id", "external_transaction_id",
+            name="uq_transactions_account_external_id",
+        ),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     account_id: Mapped[int] = mapped_column(ForeignKey("accounts.id"))
 
-    # External transaction ID (from API provider)
-    external_transaction_id: Mapped[Optional[str]] = mapped_column(String(255), unique=True)
+    # External transaction ID (from API provider); unique per account, not global
+    external_transaction_id: Mapped[Optional[str]] = mapped_column(String(255))
 
     # Transaction details
     description: Mapped[str] = mapped_column(String(500))

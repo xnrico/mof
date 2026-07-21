@@ -127,27 +127,6 @@ export const api = {
     return response.data;
   },
 
-  // GoCardless bank linking
-  getInstitutions: async (country = 'GB') => {
-    const response = await client.get('/gocardless/institutions', { params: { country } });
-    return response.data;
-  },
-
-  createGCLink: async (data: { account_id: number; institution_id: string; redirect_base_url: string }) => {
-    const response = await client.post('/gocardless/link', data);
-    return response.data;
-  },
-
-  getGCRequisition: async (accountId: number) => {
-    const response = await client.get('/gocardless/requisition', { params: { account_id: accountId } });
-    return response.data;
-  },
-
-  setGCAccount: async (data: { mof_account_id: number; gc_account_id: string; requisition_id: string }) => {
-    const response = await client.post('/gocardless/set-account', data);
-    return response.data;
-  },
-
   // TrueLayer bank linking
   getTrueLayerLinkUrl: async (accountId: number, redirectBaseUrl: string) => {
     const response = await client.get('/truelayer/link', {
@@ -209,39 +188,6 @@ export const api = {
   }) => {
     const response = await client.post('/plaid/set-account', data);
     return response.data;
-  },
-
-  // Sophtron bank linking (username/password + MFA; e.g. HSBC US)
-  searchSophtronInstitutions: async (name: string, keyPairId?: number) => {
-    const r = await client.post('/sophtron/institutions', { name, key_pair_id: keyPairId });
-    return r.data as { id: string; name: string }[];
-  },
-  sophtronLogin: async (data: {
-    institution_id: string; username: string; password: string; pin?: string; key_pair_id?: number;
-  }) => {
-    const r = await client.post('/sophtron/login', data);
-    return r.data as { job_id: string; user_institution_id: string };
-  },
-  getSophtronJob: async (jobId: string, keyPairId?: number) => {
-    const r = await client.get(`/sophtron/job/${jobId}`, { params: { key_pair_id: keyPairId } });
-    return r.data as SophtronJob;
-  },
-  answerSophtronMfa: async (jobId: string, data: SophtronMfaAnswer) => {
-    const r = await client.post(`/sophtron/job/${jobId}/mfa`, data);
-    return r.data;
-  },
-  getSophtronAccounts: async (userInstitutionId: string, keyPairId?: number) => {
-    const r = await client.post('/sophtron/accounts', {
-      user_institution_id: userInstitutionId, key_pair_id: keyPairId,
-    });
-    return r.data as SophtronAccount[];
-  },
-  setSophtronAccount: async (data: {
-    mof_account_id: number; sophtron_account_id: string;
-    user_institution_id: string; key_pair_id?: number;
-  }) => {
-    const r = await client.post('/sophtron/set-account', data);
-    return r.data;
   },
 
   // Account management
@@ -316,39 +262,6 @@ export interface PlaidLinkAccount {
   currency: string;
   balance: number | null;
   available: number | null;
-}
-
-export interface SophtronAccount {
-  account_id: string;
-  name: string;
-  account_type: string;
-  currency: string;
-  balance: number | null;
-  mask: string | null;
-}
-
-export interface SophtronMfa {
-  type: 'security_question' | 'token_method' | 'token_input' | 'token_phone_verify' | 'captcha';
-  questions?: string;
-  options?: string;
-  image?: string;
-  read?: string;
-}
-
-export interface SophtronJob {
-  state: 'pending' | 'mfa' | 'success' | 'failed';
-  mfa: SophtronMfa | null;
-  last_status: string | null;
-  job_id: string;
-}
-
-export interface SophtronMfaAnswer {
-  key_pair_id?: number;
-  security_answer?: string;
-  captcha_input?: string;
-  token_choice?: string;
-  token_input?: string;
-  verify_phone?: boolean;
 }
 
 export interface Transaction {

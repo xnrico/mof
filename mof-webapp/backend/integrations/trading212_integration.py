@@ -124,6 +124,12 @@ class Trading212Integration(BaseIntegration):
                     headers={"Authorization": self._auth_header}
                 )
 
+                if orders_response.status_code != 200:
+                    self.last_txn_error = (
+                        f"orders HTTP {orders_response.status_code}: "
+                        f"{orders_response.text[:200]}"
+                    )
+                    print(f"Trading 212 orders fetch failed: {self.last_txn_error}")
                 if orders_response.status_code == 200:
                     payload = orders_response.json()
                     # T212 returns a paginated {"items": [...]} object; older
@@ -159,11 +165,17 @@ class Trading212Integration(BaseIntegration):
 
                 # Get dividend history
                 dividends_response = await client.get(
-                    f"{self.base_url}/history/dividends",
+                    f"{self.base_url}/equity/history/dividends",
                     headers={"Authorization": self._auth_header},
                     params={"limit": 50}
                 )
 
+                if dividends_response.status_code != 200:
+                    self.last_txn_error = (
+                        f"dividends HTTP {dividends_response.status_code}: "
+                        f"{dividends_response.text[:200]}"
+                    )
+                    print(f"Trading 212 dividends fetch failed: {self.last_txn_error}")
                 if dividends_response.status_code == 200:
                     dividends = dividends_response.json()
 

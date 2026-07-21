@@ -125,10 +125,10 @@ async def seed_sample_data():
 
         # Create sample accounts
         accounts = [
-            (babu.id, "UK Current Account", AccountType.CHECKING, Currency.GBP, IntegrationProvider.GOCARDLESS),
+            (babu.id, "UK Current Account", AccountType.CHECKING, Currency.GBP, IntegrationProvider.TRUELAYER),
             (babu.id, "US Checking Account", AccountType.CHECKING, Currency.USD, IntegrationProvider.PLAID),
             (babu.id, "Interactive Brokers", AccountType.BROKERAGE, Currency.USD, IntegrationProvider.IBKR),
-            (mamu.id, "UK Current Account", AccountType.CHECKING, Currency.GBP, IntegrationProvider.GOCARDLESS),
+            (mamu.id, "UK Current Account", AccountType.CHECKING, Currency.GBP, IntegrationProvider.TRUELAYER),
             (mamu.id, "Trading 212", AccountType.BROKERAGE, Currency.GBP, IntegrationProvider.TRADING212),
         ]
         accounts_added = 0

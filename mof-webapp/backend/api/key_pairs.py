@@ -16,9 +16,7 @@ PROVIDER_FIELDS = {
     "TrueLayer":   [("client_id","Client ID",False), ("client_secret","Client Secret",True), ("env","Environment",False)],
     "Trading212":  [("api_key","API Key",False), ("api_secret","API Secret",True), ("env","Environment",False)],
     "Plaid":       [("client_id","Client ID",False), ("secret","Secret",True), ("env","Environment",False)],
-    "GoCardless":  [("secret_id","Secret ID",False), ("secret_key","Secret Key",True), ("env","Environment",False)],
     "IBKR":        [("account_id","Account ID",False), ("host","Host",False), ("port","Port",False)],
-    "Sophtron":    [("user_id","API User ID",False), ("access_key","API Access Key",True), ("base_url","Base URL",False)],
     "Manual":      [],
 }
 

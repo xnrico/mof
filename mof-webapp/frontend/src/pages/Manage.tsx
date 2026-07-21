@@ -3,11 +3,10 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, Pencil, Trash2, Link, ChevronDown, ChevronRight, RefreshCw } from 'lucide-react';
 import { api, Account, KeyPair, formatCurrency } from '../services/api';
 import PlaidConnect from '../components/PlaidConnect';
-import SophtronConnect from '../components/SophtronConnect';
 
 const ACCOUNT_TYPES = ['Checking', 'Savings', 'Brokerage', 'Credit Card', 'Other'];
 const CURRENCIES = ['GBP', 'USD'];
-const PROVIDERS = ['TrueLayer', 'Trading212', 'Plaid', 'Sophtron', 'GoCardless', 'IBKR', 'Manual'];
+const PROVIDERS = ['TrueLayer', 'Trading212', 'Plaid', 'IBKR', 'Manual'];
 
 // ---- Account Form ----
 
@@ -131,7 +130,6 @@ function ConnectionPanel({ account }: { account: Account }) {
 
   const isTrueLayer = account.provider === 'TrueLayer';
   const isPlaid = account.provider === 'Plaid';
-  const isSophtron = account.provider === 'Sophtron';
 
   return (
     <div className="border-t border-gray-100">
@@ -148,13 +146,7 @@ function ConnectionPanel({ account }: { account: Account }) {
         </div>
       )}
 
-      {expanded && isSophtron && (
-        <div className="px-4 pb-4 pt-1 bg-gray-50">
-          <SophtronConnect account={account} />
-        </div>
-      )}
-
-      {expanded && !isPlaid && !isSophtron && (
+      {expanded && !isPlaid && (
         <div className="px-4 pb-4 space-y-3 bg-gray-50">
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">Key Pair</label>
@@ -201,6 +193,61 @@ function ConnectionPanel({ account }: { account: Account }) {
   );
 }
 
+// ---- Account Card ----
+
+function AccountCard({ account, users, isEditing, onEdit, onCancelEdit, onSave, onDelete, userName }: {
+  account: Account;
+  users: { id: number; name: string }[];
+  isEditing: boolean;
+  onEdit: () => void;
+  onCancelEdit: () => void;
+  onSave: (d: AccountFormData & { id?: number }) => void;
+  onDelete: () => void;
+  userName: (userId: number) => string;
+}) {
+  return (
+    <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+      {isEditing ? (
+        <div className="p-5 border-b border-gray-100">
+          <h2 className="text-base font-semibold text-gray-900 mb-4">Edit Account</h2>
+          <AccountForm initial={account} users={users} onSave={onSave} onCancel={onCancelEdit} />
+        </div>
+      ) : (
+        <div className="flex items-center gap-4 p-4">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="font-semibold text-gray-900">{account.name}</span>
+              {[account.provider, account.account_type, account.currency].map(tag => (
+                <span key={tag} className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{tag}</span>
+              ))}
+            </div>
+            <div className="text-sm text-gray-500 mt-0.5">
+              {account.is_shared
+                ? <span className="text-purple-600 font-medium">Daixu (Shared)</span>
+                : userName(account.user_id)}
+              {account.current_balance != null && (
+                <span className="ml-3 font-medium text-gray-700">{formatCurrency(account.current_balance, account.currency)}</span>
+              )}
+              {account.last_synced_at && (
+                <span className="ml-3 text-gray-400">synced {new Date(account.last_synced_at).toLocaleDateString()}</span>
+              )}
+            </div>
+          </div>
+          <div className="flex gap-1 flex-shrink-0">
+            <button onClick={onEdit} className="p-1.5 text-gray-400 hover:text-blue-600 rounded">
+              <Pencil className="h-4 w-4" />
+            </button>
+            <button onClick={onDelete} className="p-1.5 text-gray-400 hover:text-red-600 rounded">
+              <Trash2 className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      )}
+      {account.provider !== 'Manual' && <ConnectionPanel account={account} />}
+    </div>
+  );
+}
+
 // ---- Main Manage Page ----
 
 export default function Manage() {
@@ -234,6 +281,36 @@ export default function Manage() {
     return (users as { id: number; name: string }[] | undefined)?.find(u => u.id === userId)?.name ?? '';
   }
 
+  // Group cards by owner (Daixu shared pool first, then each user in id order),
+  // and within an owner by account category (type), then name. Mirrors the
+  // grouping on the Accounts page so both views read the same way.
+  const ownerGroups = (() => {
+    const byOwner = new Map<string, { label: string; order: number; rows: Account[] }>();
+    for (const a of accounts ?? []) {
+      const key = a.is_shared ? 'daixu' : `user-${a.user_id}`;
+      const label = a.is_shared ? 'Daixu (Shared)' : userName(a.user_id);
+      const order = a.is_shared ? -1 : a.user_id;
+      if (!byOwner.has(key)) byOwner.set(key, { label, order, rows: [] });
+      byOwner.get(key)!.rows.push(a);
+    }
+    const owners = [...byOwner.values()].sort((x, y) => x.order - y.order);
+    // Split each owner's rows into category sub-groups (by account_type).
+    return owners.map(owner => {
+      const byCat = new Map<string, Account[]>();
+      for (const a of owner.rows) {
+        if (!byCat.has(a.account_type)) byCat.set(a.account_type, []);
+        byCat.get(a.account_type)!.push(a);
+      }
+      const categories = [...byCat.entries()]
+        .sort((a, b) => a[0].localeCompare(b[0]))
+        .map(([category, rows]) => ({
+          category,
+          rows: rows.sort((x, y) => x.name.localeCompare(y.name) || x.id - y.id),
+        }));
+      return { ...owner, categories };
+    });
+  })();
+
   return (
     <div className="px-4 py-6 space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
@@ -252,49 +329,33 @@ export default function Manage() {
       )}
 
       {isLoading ? <p className="text-gray-500">Loading…</p> : (
-        <div className="space-y-4">
-          {(accounts ?? []).map(account => (
-            <div key={account.id} className="bg-white rounded-lg shadow-sm overflow-hidden">
-              {editAccount?.id === account.id ? (
-                <div className="p-5 border-b border-gray-100">
-                  <h2 className="text-base font-semibold text-gray-900 mb-4">Edit Account</h2>
-                  <AccountForm initial={account} users={users ?? []}
-                    onSave={d => updateMutation.mutate({ id: account.id, ...d })}
-                    onCancel={() => setEditAccount(null)} />
+        <div className="space-y-8">
+          {ownerGroups.map(owner => (
+            <div key={owner.label} className="space-y-4">
+              <div className="flex items-center gap-3">
+                <h2 className="text-lg font-bold text-gray-900">{owner.label}</h2>
+                <div className="flex-1 border-t border-gray-200" />
+              </div>
+              {owner.categories.map(cat => (
+                <div key={cat.category} className="space-y-2">
+                  <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-400 pl-1">
+                    {cat.category}
+                  </h3>
+                  {cat.rows.map(account => (
+                    <AccountCard
+                      key={account.id}
+                      account={account}
+                      users={users ?? []}
+                      isEditing={editAccount?.id === account.id}
+                      onEdit={() => setEditAccount(account)}
+                      onCancelEdit={() => setEditAccount(null)}
+                      onSave={d => updateMutation.mutate({ id: account.id, ...d })}
+                      onDelete={() => { if (window.confirm(`Delete "${account.name}"?`)) deleteMutation.mutate(account.id); }}
+                      userName={userName}
+                    />
+                  ))}
                 </div>
-              ) : (
-                <div className="flex items-center gap-4 p-4">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-semibold text-gray-900">{account.name}</span>
-                      {[account.provider, account.account_type, account.currency].map(tag => (
-                        <span key={tag} className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{tag}</span>
-                      ))}
-                    </div>
-                    <div className="text-sm text-gray-500 mt-0.5">
-                      {account.is_shared
-                        ? <span className="text-purple-600 font-medium">Daixu (Shared)</span>
-                        : userName(account.user_id)}
-                      {account.current_balance != null && (
-                        <span className="ml-3 font-medium text-gray-700">{formatCurrency(account.current_balance, account.currency)}</span>
-                      )}
-                      {account.last_synced_at && (
-                        <span className="ml-3 text-gray-400">synced {new Date(account.last_synced_at).toLocaleDateString()}</span>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex gap-1 flex-shrink-0">
-                    <button onClick={() => setEditAccount(account)} className="p-1.5 text-gray-400 hover:text-blue-600 rounded">
-                      <Pencil className="h-4 w-4" />
-                    </button>
-                    <button onClick={() => { if (window.confirm(`Delete "${account.name}"?`)) deleteMutation.mutate(account.id); }}
-                      className="p-1.5 text-gray-400 hover:text-red-600 rounded">
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </div>
-                </div>
-              )}
-              {account.provider !== 'Manual' && <ConnectionPanel account={account} />}
+              ))}
             </div>
           ))}
           {accounts?.length === 0 && (

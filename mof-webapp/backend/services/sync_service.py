@@ -92,9 +92,14 @@ class SyncService:
 
             # Process transactions
             for txn_data in transactions:
-                # Check if transaction already exists
+                # Check if transaction already exists — scoped to THIS account.
+                # Providers can legitimately emit the same external id under
+                # different accounts (e.g. one Trading212 API key per equity),
+                # so a global lookup would let the first-synced account claim
+                # rows and leave the others empty.
                 stmt = select(Transaction).where(
-                    Transaction.external_transaction_id == txn_data.external_id
+                    Transaction.account_id == account_id,
+                    Transaction.external_transaction_id == txn_data.external_id,
                 )
                 existing_result = await self.db.execute(stmt)
                 existing_txn = existing_result.scalar_one_or_none()
@@ -246,11 +251,6 @@ class SyncService:
             credentials["env"]       = kp_creds.get("env")       or await provider_settings.get_effective(self.db, "PLAID_ENV",       settings.PLAID_ENV)
             credentials["item_id"]   = config.item_id
 
-        elif provider == IntegrationProvider.GOCARDLESS:
-            from services.gocardless_client import GoCardlessClient
-            credentials["gc_account_id"] = config.access_token
-            credentials["_client"] = GoCardlessClient(self.db)
-
         elif provider == IntegrationProvider.IBKR:
             credentials["host"]       = await _get("IBKR_HOST",       settings.IBKR_HOST)
             credentials["port"]       = await _get("IBKR_PORT",       str(settings.IBKR_PORT))
@@ -279,14 +279,6 @@ class SyncService:
             credentials["api_key"]    = api_key
             credentials["api_secret"] = api_secret
             credentials["env"]        = kp_creds.get("env") or await provider_settings.get_effective(self.db, "TRADING212_ENV", settings.TRADING212_ENV)
-
-        elif provider == IntegrationProvider.SOPHTRON:
-            from services.sophtron_client import SophtronClient
-            cfg = json.loads(config.config_data) if config.config_data else {}
-            credentials["_client"] = SophtronClient(self.db, key_pair_id=config.key_pair_id)
-            credentials["user_institution_id"] = cfg.get("user_institution_id")
-            # AccountID is stored in item_id (mirrors Plaid) and external_account_id.
-            credentials["account_id"] = config.item_id
 
         return credentials
 

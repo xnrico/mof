@@ -1,11 +1,9 @@
 from typing import Dict, Type
 from .base import BaseIntegration
 from .plaid_integration import PlaidIntegration
-from .gocardless_integration import GoCardlessIntegration
 from .ibkr_integration import IBKRIntegration
 from .trading212_integration import Trading212Integration
 from .truelayer_integration import TrueLayerIntegration
-from .sophtron_integration import SophtronIntegration
 
 
 class IntegrationFactory:
@@ -13,11 +11,9 @@ class IntegrationFactory:
 
     _integrations: Dict[str, Type[BaseIntegration]] = {
         "plaid": PlaidIntegration,
-        "gocardless": GoCardlessIntegration,
         "ibkr": IBKRIntegration,
         "trading212": Trading212Integration,
         "truelayer": TrueLayerIntegration,
-        "sophtron": SophtronIntegration,
     }
 
     @classmethod

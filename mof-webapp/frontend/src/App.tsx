@@ -6,7 +6,6 @@ import Accounts from './pages/Accounts';
 import Transactions from './pages/Transactions';
 import Settings from './pages/Settings';
 import Manage from './pages/Manage';
-import GoCardlessCallback from './pages/GoCardlessCallback';
 import TrueLayerCallback from './pages/TrueLayerCallback';
 
 const queryClient = new QueryClient();
@@ -65,7 +64,6 @@ function App() {
               <Route path="/accounts" element={<Accounts />} />
               <Route path="/transactions" element={<Transactions />} />
               <Route path="/settings" element={<Settings />} />
-              <Route path="/gocardless/callback" element={<GoCardlessCallback />} />
               <Route path="/truelayer/callback" element={<TrueLayerCallback />} />
               <Route path="/manage" element={<Manage />} />
             </Routes>

@@ -22,11 +22,6 @@ class Settings(BaseSettings):
     PLAID_SECRET: Optional[str] = None
     PLAID_ENV: str = "sandbox"
 
-    # GoCardless (Nordigen Bank Account Data)
-    GOCARDLESS_SECRET_ID: Optional[str] = None
-    GOCARDLESS_SECRET_KEY: Optional[str] = None
-    GOCARDLESS_ENV: str = "sandbox"  # "sandbox" or "live"
-
     # TrueLayer (UK Open Banking)
     TRUELAYER_CLIENT_ID: Optional[str] = None
     TRUELAYER_CLIENT_SECRET: Optional[str] = None
@@ -39,11 +34,6 @@ class Settings(BaseSettings):
     # Trading 212
     TRADING212_API_KEY: Optional[str] = None
     TRADING212_ENV: str = "demo"
-
-    # Sophtron (data aggregator — e.g. HSBC US). HMAC-signed API.
-    SOPHTRON_USER_ID: Optional[str] = None
-    SOPHTRON_ACCESS_KEY: Optional[str] = None
-    SOPHTRON_BASE_URL: str = "https://api.sophtron.com/api/"
 
     # Sync
     SYNC_SCHEDULE: str = "0 */6 * * *"

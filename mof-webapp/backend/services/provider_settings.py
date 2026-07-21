@@ -18,11 +18,6 @@ PROVIDER_FIELDS = {
         {"key": "PLAID_SECRET", "label": "Secret", "secret": True},
         {"key": "PLAID_ENV", "label": "Environment", "secret": False},
     ],
-    "GoCardless": [
-        {"key": "GOCARDLESS_SECRET_ID", "label": "Secret ID", "secret": False},
-        {"key": "GOCARDLESS_SECRET_KEY", "label": "Secret Key", "secret": True},
-        {"key": "GOCARDLESS_ENV", "label": "Environment (sandbox / live)", "secret": False},
-    ],
     "TrueLayer": [
         {"key": "TRUELAYER_CLIENT_ID", "label": "Client ID", "secret": False},
         {"key": "TRUELAYER_CLIENT_SECRET", "label": "Client Secret", "secret": True},
@@ -37,11 +32,6 @@ PROVIDER_FIELDS = {
         {"key": "IBKR_HOST", "label": "Host", "secret": False},
         {"key": "IBKR_PORT", "label": "Port", "secret": False},
         {"key": "IBKR_ACCOUNT_ID", "label": "Account ID", "secret": False},
-    ],
-    "Sophtron": [
-        {"key": "SOPHTRON_USER_ID", "label": "API User ID", "secret": False},
-        {"key": "SOPHTRON_ACCESS_KEY", "label": "API Access Key", "secret": True},
-        {"key": "SOPHTRON_BASE_URL", "label": "Base URL", "secret": False},
     ],
 }
 

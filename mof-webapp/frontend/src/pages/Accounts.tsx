@@ -6,7 +6,7 @@ import { api, formatCurrency, Account, User, SyncResult } from '../services/api'
 function ProviderBadge({ provider }: { provider: string }) {
   const colors: Record<string, string> = {
     Plaid: 'bg-indigo-100 text-indigo-800',
-    GoCardless: 'bg-emerald-100 text-emerald-800',
+    TrueLayer: 'bg-emerald-100 text-emerald-800',
     IBKR: 'bg-amber-100 text-amber-800',
     Trading212: 'bg-sky-100 text-sky-800',
     Manual: 'bg-gray-100 text-gray-800',
