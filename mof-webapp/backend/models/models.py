@@ -15,12 +15,13 @@ class Category(str, enum.Enum):
     FOOD = "Food"
     GROCERY = "Grocery"
     TRANSPORT = "Transport"
+    CAR = "Car"
     HOUSING = "Housing"
     ENTERTAINMENT = "Entertainment"
     TOURISM = "Tourism"
     SUBSCRIPTIONS = "Subscriptions"
-    KITTENS = "Kittens"
     SALARY = "Salary"
+    INCOME = "Income"
     INVESTMENT = "Investment"
     INVESTMENT_GAIN = "Investment Gain"
     INVESTMENT_LOSS = "Investment Loss"
@@ -126,6 +127,9 @@ class Transaction(Base):
     # Manual overrides
     category_override: Mapped[Optional[Category]] = mapped_column(SQLEnum(Category))
     is_hidden: Mapped[bool] = mapped_column(Boolean, default=False)
+    # Unticked by the user to exclude this transaction from accounting/analytics
+    # (e.g. the spending pie). Defaults to True (included).
+    include_in_accounting: Mapped[bool] = mapped_column(Boolean, default=True)
 
     # Relationships
     account: Mapped["Account"] = relationship(back_populates="transactions")

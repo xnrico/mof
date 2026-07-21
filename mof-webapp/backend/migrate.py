@@ -204,6 +204,44 @@ async def run():
             print("  added composite unique constraint")
     await engine_txn.dispose()
 
+    # Step 7: category changes (add CAR + INCOME, retire KITTENS) and the
+    # include_in_accounting flag on transactions.
+    engine_cat = create_async_engine(DATABASE_URL, echo=False, isolation_level="AUTOCOMMIT")
+    async with engine_cat.connect() as conn:
+        print("\nStep 7: Category enum + include_in_accounting column...")
+
+        # Add new enum values (SQLAlchemy stores NAMES).
+        existing = [r[0] for r in (await conn.execute(text(
+            "SELECT unnest(enum_range(NULL::category))::text"
+        ))).fetchall()]
+        for name in ("CAR", "INCOME"):
+            if name not in existing:
+                await conn.execute(text(f"ALTER TYPE category ADD VALUE '{name}'"))
+                print(f"  category enum: added {name}")
+            else:
+                print(f"  category enum: {name} already present")
+
+        # include_in_accounting flag (idempotent).
+        await conn.execute(text("""
+            ALTER TABLE transactions
+            ADD COLUMN IF NOT EXISTS include_in_accounting BOOLEAN NOT NULL DEFAULT TRUE
+        """))
+        print("  transactions.include_in_accounting column: OK")
+    await engine_cat.dispose()
+
+    # Reassign any KITTENS rows to OTHER (separate connection: can't use a new
+    # enum value in the same tx that added it; KITTENS removal needs its own
+    # DML pass). Postgres keeps the KITTENS enum label — harmless once unused.
+    engine_kit = create_async_engine(DATABASE_URL, echo=False)
+    async with engine_kit.begin() as conn:
+        for col in ("category", "category_override"):
+            r = await conn.execute(text(
+                f"UPDATE transactions SET {col} = 'OTHER' WHERE {col}::text = 'KITTENS'"
+            ))
+            if r.rowcount:
+                print(f"  transactions.{col}: {r.rowcount} KITTENS → OTHER")
+    await engine_kit.dispose()
+
     print("\nMigration complete.")
 
 

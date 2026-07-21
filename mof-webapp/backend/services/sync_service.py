@@ -1,5 +1,5 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, or_, func
 from typing import List, Optional
 from datetime import datetime, timedelta, timezone
 from models.models import (
@@ -116,20 +116,33 @@ class SyncService:
                 existing_txn = existing_result.scalar_one_or_none()
 
                 if existing_txn:
-                    # Update existing transaction
+                    # Update mutable fields only. NEVER touch category /
+                    # category_override / include_in_accounting on an existing
+                    # row — the user may have set those by hand, and even a
+                    # forced full re-sync must preserve them.
                     existing_txn.description = txn_data.description
                     existing_txn.amount = txn_data.amount
                     existing_txn.merchant_name = txn_data.merchant_name
                     result["transactions_updated"] += 1
                 else:
-                    # Create new transaction
+                    # New transaction: first try to inherit the category a
+                    # similar (same-vendor) transaction already has — so manual
+                    # categorisations propagate to future imports — then fall
+                    # back to the keyword-based smart categoriser.
+                    category = await self._category_from_history(
+                        txn_data.description, txn_data.merchant_name
+                    )
+                    if category is None:
+                        category = self._smart_category(
+                            txn_data.description, txn_data.merchant_name
+                        )
                     new_txn = Transaction(
                         account_id=account_id,
                         external_transaction_id=txn_data.external_id,
                         description=txn_data.description,
                         amount=txn_data.amount,
                         currency=self._map_currency(txn_data.currency, account.currency),
-                        category=self._smart_category(txn_data.description, txn_data.merchant_name),
+                        category=category,
                         transaction_date=self._naive_utc(txn_data.date),
                         merchant_name=txn_data.merchant_name,
                     )
@@ -337,6 +350,10 @@ class SyncService:
         ("payroll",         Category.SALARY),
         ("wages",           Category.SALARY),
         ("payslip",         Category.SALARY),
+        ("refund",          Category.INCOME),
+        ("reimbursement",   Category.INCOME),
+        ("rebate",          Category.INCOME),
+        ("bonus",           Category.INCOME),
         ("dividend",        Category.DIVIDEND),
         ("interest",        Category.INTEREST),
         ("interest_on_free_cash", Category.INTEREST),
@@ -394,13 +411,27 @@ class SyncService:
         ("easyjet",         Category.TRANSPORT),
         ("british airways", Category.TRANSPORT),
         ("emirates",        Category.TRANSPORT),
-        ("petrol",          Category.TRANSPORT),
-        ("fuel",            Category.TRANSPORT),
-        ("parking",         Category.TRANSPORT),
-        ("toll",            Category.TRANSPORT),
         ("transport",       Category.TRANSPORT),
         ("transit",         Category.TRANSPORT),
         ("bus",             Category.TRANSPORT),
+        # ── Car (fuel, parking, servicing, insurance, tolls) ─────────────────
+        ("petrol",          Category.CAR),
+        ("fuel",            Category.CAR),
+        ("shell",           Category.CAR),
+        ("bp ",             Category.CAR),
+        ("esso",            Category.CAR),
+        ("texaco",          Category.CAR),
+        ("parking",         Category.CAR),
+        ("ncp",             Category.CAR),
+        ("toll",            Category.CAR),
+        ("dart charge",     Category.CAR),
+        ("congestion",      Category.CAR),
+        ("mot",             Category.CAR),
+        ("kwik fit",        Category.CAR),
+        ("halfords",        Category.CAR),
+        ("car insurance",   Category.CAR),
+        ("car park",        Category.CAR),
+        ("dvla",            Category.CAR),
         # ── Housing / utilities ──────────────────────────────────────────────
         ("rent",            Category.HOUSING),
         ("mortgage",        Category.HOUSING),
@@ -498,3 +529,41 @@ class SyncService:
                 if cat != Category.OTHER:
                     return cat
         return Category.OTHER
+
+    async def _category_from_history(
+        self, description: Optional[str], merchant: Optional[str]
+    ) -> Optional[Category]:
+        """Find how a similar past transaction was categorised, so manual
+        categorisations propagate to new imports of the same vendor.
+
+        Matches on the vendor key (first two words of merchant, else
+        description) against existing merchant_name/description, and returns
+        the most recent effective category (override wins) — but only if it's
+        a real decision, i.e. not OTHER. Returns None when there's no usable
+        precedent so the caller falls back to the smart categoriser.
+        """
+        base = (merchant or description or "").strip()
+        if not base:
+            return None
+        key = " ".join(base.split()[:2])
+        if not key:
+            return None
+
+        like = f"%{key.lower()}%"
+        stmt = (
+            select(Transaction)
+            .where(
+                or_(
+                    func.lower(Transaction.merchant_name).like(like),
+                    func.lower(Transaction.description).like(like),
+                )
+            )
+            .order_by(Transaction.transaction_date.desc())
+            .limit(20)
+        )
+        rows = (await self.db.execute(stmt)).scalars().all()
+        for txn in rows:
+            cat = txn.category_override or txn.category
+            if cat and cat != Category.OTHER:
+                return cat
+        return None

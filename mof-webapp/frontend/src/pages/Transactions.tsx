@@ -3,8 +3,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api, formatCurrency, Account, Transaction } from '../services/api';
 
 const CATEGORIES = [
-  'Food', 'Grocery', 'Transport', 'Housing', 'Entertainment', 'Tourism',
-  'Subscriptions', 'Kittens', 'Salary', 'Investment', 'Investment Gain',
+  'Food', 'Grocery', 'Transport', 'Car', 'Housing', 'Entertainment', 'Tourism',
+  'Subscriptions', 'Salary', 'Income', 'Investment', 'Investment Gain',
   'Investment Loss', 'Dividend', 'Interest', 'Other',
 ];
 
@@ -36,6 +36,15 @@ export default function Transactions() {
     mutationFn: ({ id, category }: { id: number; category: string }) =>
       api.updateTransaction(id, { category_override: category }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['transactions'] }),
+  });
+
+  const accountingMutation = useMutation({
+    mutationFn: ({ id, include }: { id: number; include: boolean }) =>
+      api.updateTransaction(id, { include_in_accounting: include }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['summary'] });
+    },
   });
 
   const bulkMutation = useMutation({
@@ -145,13 +154,16 @@ export default function Transactions() {
                   {h}
                 </th>
               ))}
+              <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap" title="Include this transaction in the spending pie / accounting">
+                In accounting
+              </th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200">
             {isLoading ? (
-              <tr><td colSpan={5} className="px-4 py-8 text-center text-gray-500">Loading…</td></tr>
+              <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-500">Loading…</td></tr>
             ) : (transactions ?? []).length === 0 ? (
-              <tr><td colSpan={5} className="px-4 py-8 text-center text-gray-500">
+              <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-500">
                 No transactions. Sync an account to import them.
               </td></tr>
             ) : (
@@ -203,6 +215,15 @@ export default function Transactions() {
                           {formatCurrency(t.amount, t.currency)}
                         </div>
                       )}
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <input
+                        type="checkbox"
+                        checked={t.include_in_accounting}
+                        onChange={(e) => accountingMutation.mutate({ id: t.id, include: e.target.checked })}
+                        className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                        title={t.include_in_accounting ? 'Included in accounting' : 'Excluded from accounting'}
+                      />
                     </td>
                   </tr>
                 );

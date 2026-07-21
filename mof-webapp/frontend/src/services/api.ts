@@ -106,6 +106,13 @@ export const api = {
     return response.data;
   },
 
+  getMonthlyIncome: async (userId: number, currency = 'GBP') => {
+    const response = await client.get('/transactions/summary/monthly-income', {
+      params: { user_id: userId, currency }
+    });
+    return response.data as MonthlyIncome;
+  },
+
   // Sync
   syncAccount: async (accountId: number, full = false, sinceDays?: number) => {
     const params: Record<string, unknown> = { full };
@@ -287,6 +294,14 @@ export interface Transaction {
   notes: string | null;
   category_override: string | null;
   is_hidden: boolean;
+  include_in_accounting: boolean;
+}
+
+export interface MonthlyIncome {
+  salary: number;
+  additional_income: number;
+  total: number;
+  currency: string;
 }
 
 export interface CategorySummary {

@@ -6,7 +6,7 @@ from pydantic import BaseModel
 from datetime import datetime
 
 from models.database import get_db
-from models.models import Transaction, Account, Category, Currency
+from models.models import Transaction, Account, Category, Currency, IncomeSource
 
 router = APIRouter()
 
@@ -24,6 +24,7 @@ class TransactionResponse(BaseModel):
     notes: str | None
     category_override: str | None
     is_hidden: bool
+    include_in_accounting: bool
 
     class Config:
         from_attributes = True
@@ -33,6 +34,7 @@ class TransactionUpdate(BaseModel):
     category_override: str | None = None
     notes: str | None = None
     is_hidden: bool | None = None
+    include_in_accounting: bool | None = None
 
 
 class BulkCategorizeRequest(BaseModel):
@@ -112,6 +114,9 @@ async def update_transaction(
     if update.is_hidden is not None:
         transaction.is_hidden = update.is_hidden
 
+    if update.include_in_accounting is not None:
+        transaction.include_in_accounting = update.include_in_accounting
+
     await db.commit()
     await db.refresh(transaction)
     return transaction
@@ -176,6 +181,7 @@ async def get_summary_by_category(
     conditions = [
         Transaction.account_id.in_(account_ids),
         Transaction.is_hidden == False,
+        Transaction.include_in_accounting == True,
         Transaction.currency == Currency(currency),
     ]
     if expenses_only:
@@ -202,3 +208,68 @@ async def get_summary_by_category(
         summary[cat_str]["count"] += 1
 
     return list(summary.values())
+
+
+@router.get("/summary/monthly-income")
+async def get_monthly_income(
+    user_id: int,
+    currency: str = "GBP",
+    db: AsyncSession = Depends(get_db),
+):
+    """Monthly income breakdown for a user.
+
+    - salary: the amount of the user's latest monthly Salary income source
+      (the configured recurring salary), 0 if none.
+    - additional_income: sum of this calendar month's transactions categorised
+      (effective category) as Income or Interest, across the user's accounts,
+      in the requested currency, respecting include_in_accounting.
+    """
+    # --- Salary: latest monthly income source ---
+    salary_row = (
+        await db.execute(
+            select(IncomeSource)
+            .where(
+                IncomeSource.user_id == user_id,
+                IncomeSource.is_active == True,
+                IncomeSource.frequency == "monthly",
+                func.lower(IncomeSource.name).contains("salary"),
+            )
+            .order_by(IncomeSource.id.desc())
+        )
+    ).scalars().first()
+    salary = float(salary_row.amount) if salary_row else 0.0
+
+    # --- Additional income: this month's Income + Interest transactions ---
+    accounts = (
+        await db.execute(select(Account).where(Account.user_id == user_id))
+    ).scalars().all()
+    account_ids = [a.id for a in accounts]
+
+    additional = 0.0
+    if account_ids:
+        now = datetime.now()
+        month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        txns = (
+            await db.execute(
+                select(Transaction).where(
+                    and_(
+                        Transaction.account_id.in_(account_ids),
+                        Transaction.is_hidden == False,
+                        Transaction.include_in_accounting == True,
+                        Transaction.currency == Currency(currency),
+                        Transaction.transaction_date >= month_start,
+                    )
+                )
+            )
+        ).scalars().all()
+        for t in txns:
+            cat = t.category_override if t.category_override else t.category
+            if cat in (Category.INCOME, Category.INTEREST):
+                additional += abs(t.amount)
+
+    return {
+        "salary": salary,
+        "additional_income": additional,
+        "total": salary + additional,
+        "currency": currency,
+    }

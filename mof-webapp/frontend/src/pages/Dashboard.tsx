@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 import { Wallet, TrendingUp } from 'lucide-react';
-import { api, formatCurrency, User, Account, IncomeSource, CategorySummary } from '../services/api';
+import { api, formatCurrency, User, Account, CategorySummary } from '../services/api';
 
 const COLORS = [
   '#2563eb', '#16a34a', '#dc2626', '#d97706', '#7c3aed',
@@ -58,15 +58,6 @@ export default function Dashboard() {
   // belongs to exactly one user_id, so there's no double counting).
   const summaryUserIds = isDaixu ? (users ?? []).map((u) => u.id) : (activeUserId != null ? [activeUserId] : []);
 
-  const { data: income } = useQuery<IncomeSource[]>({
-    queryKey: ['income', summaryUserIds],
-    queryFn: async () => {
-      const lists = await Promise.all(summaryUserIds.map((id) => api.getIncomeSources(id)));
-      return lists.flat();
-    },
-    enabled: summaryUserIds.length > 0,
-  });
-
   const { data: summary } = useQuery<CategorySummary[]>({
     queryKey: ['summary', summaryUserIds],
     queryFn: async () => {
@@ -82,6 +73,25 @@ export default function Dashboard() {
         merged[row.category] = m;
       });
       return Object.values(merged);
+    },
+    enabled: summaryUserIds.length > 0,
+  });
+
+  // Monthly income: latest Salary income-source value + this month's
+  // Income/Interest category transactions, summed across the tab's users.
+  const { data: monthlyIncomeData } = useQuery({
+    queryKey: ['monthly-income', summaryUserIds],
+    queryFn: async () => {
+      const rows = await Promise.all(
+        summaryUserIds.map((id) => api.getMonthlyIncome(id, 'GBP'))
+      );
+      return rows.reduce(
+        (acc, r) => ({
+          salary: acc.salary + r.salary,
+          additional_income: acc.additional_income + r.additional_income,
+        }),
+        { salary: 0, additional_income: 0 }
+      );
     },
     enabled: summaryUserIds.length > 0,
   });
@@ -106,14 +116,11 @@ export default function Dashboard() {
   });
   const hasMultipleCurrencies = Object.keys(balancesByCurrency).length > 1;
 
-  const monthlyIncome = (income ?? [])
-    .filter((i) => i.frequency === 'monthly')
-    .reduce((sum, i) => sum + i.amount, 0);
-
   const chartData = (summary ?? [])
     .filter((s) => s.total > 0.01)  // drop near-zero rounding noise
     .sort((a, b) => b.total - a.total)
     .map((s) => ({ name: s.category, value: Math.round(s.total * 100) / 100 }));
+  const spendingTotal = chartData.reduce((sum, d) => sum + d.value, 0);
 
   return (
     <div className="px-4 py-6 space-y-6">
@@ -212,10 +219,23 @@ export default function Dashboard() {
           <div className="flex items-center gap-3">
             <TrendingUp className="h-8 w-8 text-green-600" />
             <div>
-              <p className="text-sm text-gray-500">Monthly Income ({displayCurrency})</p>
+              <p className="text-sm text-gray-500">Salary ({displayCurrency})</p>
               <p className="text-2xl font-bold text-gray-900">
-                {formatCurrency(toDisplay(monthlyIncome, 'GBP'), displayCurrency)}
+                {formatCurrency(toDisplay(monthlyIncomeData?.salary ?? 0, 'GBP'), displayCurrency)}
               </p>
+              <p className="text-xs text-gray-400 mt-0.5">latest monthly salary</p>
+            </div>
+          </div>
+        </Card>
+        <Card>
+          <div className="flex items-center gap-3">
+            <TrendingUp className="h-8 w-8 text-emerald-500" />
+            <div>
+              <p className="text-sm text-gray-500">Additional Income ({displayCurrency})</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {formatCurrency(toDisplay(monthlyIncomeData?.additional_income ?? 0, 'GBP'), displayCurrency)}
+              </p>
+              <p className="text-xs text-gray-400 mt-0.5">this month · Income + Interest</p>
             </div>
           </div>
         </Card>
@@ -237,12 +257,25 @@ export default function Dashboard() {
         ) : (
           <ResponsiveContainer width="100%" height={320}>
             <PieChart>
-              <Pie data={chartData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={110} label>
+              <Pie
+                data={chartData}
+                dataKey="value"
+                nameKey="name"
+                cx="50%"
+                cy="50%"
+                outerRadius={110}
+                label={({ percent }) => `${((percent ?? 0) * 100).toFixed(1)}%`}
+              >
                 {chartData.map((_, i) => (
                   <Cell key={i} fill={COLORS[i % COLORS.length]} />
                 ))}
               </Pie>
-              <Tooltip formatter={(v: number) => formatCurrency(v, 'GBP')} />
+              <Tooltip
+                formatter={(v: number) => {
+                  const pct = spendingTotal > 0 ? (v / spendingTotal) * 100 : 0;
+                  return [`${formatCurrency(v, 'GBP')} (${pct.toFixed(1)}%)`, ''];
+                }}
+              />
               <Legend />
             </PieChart>
           </ResponsiveContainer>
