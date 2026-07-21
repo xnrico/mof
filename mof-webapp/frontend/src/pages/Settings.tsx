@@ -26,26 +26,26 @@ function KeyPairRow({ pair, fields, onDelete }: {
   });
 
   return (
-    <div className="border border-gray-200 rounded-md p-3 space-y-2">
+    <div className="border-2 p-3 space-y-2" style={{ borderColor: 'rgba(26,21,18,0.15)' }}>
       {editing ? (
         <>
           <input value={name} onChange={e => setName(e.target.value)}
-            className="w-full px-2 py-1 text-sm border border-gray-300 rounded" placeholder="Name" />
+            className="sov-input sov-input-sm w-full" placeholder="Name" />
           {fields.map(f => (
             <div key={f.key}>
-              <label className="block text-xs text-gray-500 mb-0.5">{f.label}</label>
+              <label className="block text-xs sov-stat-label mb-0.5">{f.label}</label>
               <input
                 type={f.secret ? 'password' : 'text'}
                 value={draft[f.key] ?? ''}
                 onChange={e => setDraft(d => ({ ...d, [f.key]: e.target.value }))}
                 placeholder={f.secret && pair.credentials_masked[f.key]?.is_set ? '••••• (leave blank to keep)' : ''}
-                className="w-full px-2 py-1 text-sm border border-gray-300 rounded"
+                className="sov-input sov-input-sm w-full"
               />
             </div>
           ))}
           <div className="flex gap-2 pt-1">
             <button onClick={() => updateMutation.mutate()} disabled={updateMutation.isPending}
-              className="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50">
+              className="sov-btn text-xs px-3 py-1">
               Save
             </button>
             <button onClick={() => { setEditing(false); setDraft({}); }}
@@ -125,22 +125,22 @@ function KeyPairsSection() {
             </div>
 
             {addingProvider === provider && (
-              <div className="border border-blue-200 rounded-md p-3 mb-2 space-y-2 bg-blue-50">
+              <div className="border-2 border-blue-700 p-3 mb-2 space-y-2 bg-blue-50">
                 <input value={newName} onChange={e => setNewName(e.target.value)}
-                  className="w-full px-2 py-1 text-sm border border-gray-300 rounded"
+                  className="sov-input sov-input-sm w-full"
                   placeholder={`Name (e.g. "${provider} Sandbox")`} />
                 {fields.map(f => (
                   <div key={f.key}>
-                    <label className="block text-xs text-gray-500 mb-0.5">{f.label}</label>
+                    <label className="block text-xs sov-stat-label mb-0.5">{f.label}</label>
                     <input type={f.secret ? 'password' : 'text'}
                       value={newCreds[f.key] ?? ''}
                       onChange={e => setNewCreds(d => ({ ...d, [f.key]: e.target.value }))}
-                      className="w-full px-2 py-1 text-sm border border-gray-300 rounded" />
+                      className="sov-input sov-input-sm w-full" />
                   </div>
                 ))}
                 <div className="flex gap-2 pt-1">
                   <button onClick={() => createMutation.mutate()} disabled={!newName || createMutation.isPending}
-                    className="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50">
+                    className="sov-btn text-xs px-3 py-1">
                     <Save className="inline h-3 w-3 mr-1" />Create
                   </button>
                   <button onClick={() => setAddingProvider(null)} className="px-3 py-1 text-xs text-gray-600">Cancel</button>

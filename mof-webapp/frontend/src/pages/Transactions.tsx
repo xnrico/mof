@@ -184,7 +184,7 @@ export default function Transactions() {
                       <select
                         value={cat}
                         onChange={(e) => handleCategoryChange(t, e.target.value)}
-                        className="px-2 py-1 rounded-md border border-gray-300 text-sm bg-white max-w-[9rem]"
+                        className="sov-input sov-input-sm max-w-[9rem]"
                       >
                         {CATEGORIES.map((c) => (
                           <option key={c} value={c}>{c}</option>
@@ -194,7 +194,7 @@ export default function Transactions() {
                         <div className="mt-1 flex items-center gap-1.5">
                           <button
                             onClick={() => applyToSimilar(t, cat)}
-                            className="text-xs px-2 py-0.5 rounded bg-blue-600 text-white hover:bg-blue-700"
+                            className="sov-btn text-xs px-2 py-0.5"
                             title={`Apply "${cat}" to all transactions matching "${promptKey}"`}
                           >
                             Apply to “{promptKey}”

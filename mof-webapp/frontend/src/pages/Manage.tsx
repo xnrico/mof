@@ -83,7 +83,7 @@ function AccountForm({ initial, users, onSave, onCancel }: {
         <button onClick={onCancel} className="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-800">Cancel</button>
         <button onClick={() => onSave({ ...form, id: initial?.id })}
           disabled={!form.name}
-          className="px-4 py-1.5 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-40">
+          className="sov-btn px-4 py-1.5">
           {initial?.id ? 'Save Changes' : 'Add Account'}
         </button>
       </div>
@@ -175,13 +175,13 @@ function ConnectionPanel({ account }: { account: Account }) {
           <div className="flex gap-2">
             {isTrueLayer ? (
               <button onClick={handleTrueLayerConnect} disabled={redirecting}
-                className="flex items-center gap-2 px-3 py-1.5 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50">
+                className="sov-btn px-3 py-1.5">
                 {redirecting ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Link className="h-4 w-4" />}
                 {redirecting ? 'Redirecting…' : 'Connect Bank'}
               </button>
             ) : (
               <button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}
-                className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50">
+                className="sov-btn px-3 py-1.5">
                 {saveMutation.isPending ? 'Saving…' : 'Save Connection'}
               </button>
             )}
@@ -316,7 +316,7 @@ export default function Manage() {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Manage Accounts</h1>
         <button onClick={() => setShowAdd(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700">
+          className="sov-btn">
           <Plus className="h-4 w-4" /> Add Account
         </button>
       </div>

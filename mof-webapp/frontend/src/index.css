@@ -112,4 +112,9 @@ code {
            focus:border-blue-700 focus:outline-none focus:ring-0;
     border-color: rgba(26, 21, 18, 0.2);
   }
+
+  /* Compact variant for tight spots (table cells, inline forms). */
+  .sov-input-sm {
+    @apply w-auto px-2 py-1 border;
+  }
 }
