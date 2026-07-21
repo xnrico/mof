@@ -58,56 +58,54 @@ export default function Dashboard() {
   // belongs to exactly one user_id, so there's no double counting).
   const summaryUserIds = isDaixu ? (users ?? []).map((u) => u.id) : (activeUserId != null ? [activeUserId] : []);
 
-  const { data: summary } = useQuery<CategorySummary[]>({
-    queryKey: ['summary', summaryUserIds],
+  // Available months to populate the selector — union across the tab's users,
+  // newest first. Uses the whole user set so the list is stable across tabs.
+  const monthUserIds = (users ?? []).map((u) => u.id);
+  const { data: availableMonths } = useQuery({
+    queryKey: ['available-months', monthUserIds],
     queryFn: async () => {
-      const lists = await Promise.all(
-        summaryUserIds.map((id) => api.getCategorySummary(id, { currency: 'GBP', expenses_only: true }))
+      const lists = await Promise.all(monthUserIds.map((id) => api.getAvailableMonths(id)));
+      const seen = new Map<string, { year: number; month: number; label: string }>();
+      lists.flat().forEach((m) => seen.set(`${m.year}-${m.month}`, m));
+      return [...seen.values()].sort((a, b) => b.year - a.year || b.month - a.month);
+    },
+    enabled: monthUserIds.length > 0,
+  });
+
+  // Selected month; default to the most recent available (or current month).
+  const [selectedMonth, setSelectedMonth] = useState<{ year: number; month: number } | null>(null);
+  const activeMonth = selectedMonth
+    ?? (availableMonths && availableMonths.length > 0
+      ? { year: availableMonths[0].year, month: availableMonths[0].month }
+      : { year: new Date().getFullYear(), month: new Date().getMonth() + 1 });
+
+  // One consolidated month summary per user, merged for the active tab. All
+  // figures (salary, additional income, spending pie) come from this single
+  // month window so they reconcile: total_income = salary + additional_income.
+  const { data: monthSummary } = useQuery({
+    queryKey: ['month-summary', summaryUserIds, activeMonth.year, activeMonth.month],
+    queryFn: async () => {
+      const rows = await Promise.all(
+        summaryUserIds.map((id) => api.getMonthSummary(id, activeMonth.year, activeMonth.month, 'GBP'))
       );
-      // Merge category rows across users
-      const merged: Record<string, CategorySummary> = {};
-      lists.flat().forEach((row) => {
-        const m = merged[row.category] ?? { category: row.category, total: 0, count: 0 };
-        m.total += row.total;
-        m.count += row.count;
-        merged[row.category] = m;
+      const byCat: Record<string, CategorySummary> = {};
+      let salary = 0, additional = 0, spending = 0;
+      rows.forEach((r) => {
+        salary += r.salary;
+        additional += r.additional_income;
+        spending += r.spending;
+        r.by_category.forEach((c) => {
+          const m = byCat[c.category] ?? { category: c.category, total: 0, count: 0 };
+          m.total += c.total; m.count += c.count; byCat[c.category] = m;
+        });
       });
-      return Object.values(merged);
-    },
-    enabled: summaryUserIds.length > 0,
-  });
-
-  // Monthly income: latest Salary income-source value + this month's
-  // Income/Interest category transactions, summed across the tab's users.
-  const { data: monthlyIncomeData } = useQuery({
-    queryKey: ['monthly-income', summaryUserIds],
-    queryFn: async () => {
-      const rows = await Promise.all(
-        summaryUserIds.map((id) => api.getMonthlyIncome(id, 'GBP'))
-      );
-      return rows.reduce(
-        (acc, r) => ({
-          salary: acc.salary + r.salary,
-          additional_income: acc.additional_income + r.additional_income,
-        }),
-        { salary: 0, additional_income: 0 }
-      );
-    },
-    enabled: summaryUserIds.length > 0,
-  });
-
-  // This month's total income + spending (accounting rows only), summed
-  // across the tab's users. Shown alongside the spending pie.
-  const { data: monthTotalsData } = useQuery({
-    queryKey: ['month-totals', summaryUserIds],
-    queryFn: async () => {
-      const rows = await Promise.all(
-        summaryUserIds.map((id) => api.getMonthTotals(id, 'GBP'))
-      );
-      return rows.reduce(
-        (acc, r) => ({ income: acc.income + r.income, spending: acc.spending + r.spending }),
-        { income: 0, spending: 0 }
-      );
+      return {
+        salary,
+        additional_income: additional,
+        total_income: salary + additional,
+        spending,
+        by_category: Object.values(byCat),
+      };
     },
     enabled: summaryUserIds.length > 0,
   });
@@ -132,7 +130,7 @@ export default function Dashboard() {
   });
   const hasMultipleCurrencies = Object.keys(balancesByCurrency).length > 1;
 
-  const chartData = (summary ?? [])
+  const chartData = (monthSummary?.by_category ?? [])
     .filter((s) => s.total > 0.01)  // drop near-zero rounding noise
     .sort((a, b) => b.total - a.total)
     .map((s) => ({ name: s.category, value: Math.round(s.total * 100) / 100 }));
@@ -194,6 +192,24 @@ export default function Dashboard() {
               ` · updated ${new Date(fx.updated_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}
           </span>
         )}
+
+        {/* Month selector — drives Salary, Additional Income, and Spending. */}
+        <select
+          value={`${activeMonth.year}-${activeMonth.month}`}
+          onChange={(e) => {
+            const [y, m] = e.target.value.split('-').map(Number);
+            setSelectedMonth({ year: y, month: m });
+          }}
+          className="sm:ml-auto px-3 py-1.5 rounded-md border border-gray-200 text-sm bg-white"
+        >
+          {(availableMonths && availableMonths.length > 0
+            ? availableMonths
+            : [{ year: activeMonth.year, month: activeMonth.month,
+                 label: `${activeMonth.year}-${String(activeMonth.month).padStart(2, '0')}` }]
+          ).map((m) => (
+            <option key={`${m.year}-${m.month}`} value={`${m.year}-${m.month}`}>{m.label}</option>
+          ))}
+        </select>
       </div>
 
       {/* Shared-account toggle (per-user tabs only; Daixu always includes all) */}
@@ -237,9 +253,9 @@ export default function Dashboard() {
             <div>
               <p className="text-sm text-gray-500">Salary ({displayCurrency})</p>
               <p className="text-2xl font-bold text-gray-900">
-                {formatCurrency(toDisplay(monthlyIncomeData?.salary ?? 0, 'GBP'), displayCurrency)}
+                {formatCurrency(toDisplay(monthSummary?.salary ?? 0, 'GBP'), displayCurrency)}
               </p>
-              <p className="text-xs text-gray-400 mt-0.5">latest monthly salary</p>
+              <p className="text-xs text-gray-400 mt-0.5">salary received this month</p>
             </div>
           </div>
         </Card>
@@ -249,9 +265,9 @@ export default function Dashboard() {
             <div>
               <p className="text-sm text-gray-500">Additional Income ({displayCurrency})</p>
               <p className="text-2xl font-bold text-gray-900">
-                {formatCurrency(toDisplay(monthlyIncomeData?.additional_income ?? 0, 'GBP'), displayCurrency)}
+                {formatCurrency(toDisplay(monthSummary?.additional_income ?? 0, 'GBP'), displayCurrency)}
               </p>
-              <p className="text-xs text-gray-400 mt-0.5">this month · Income + Interest + Dividend</p>
+              <p className="text-xs text-gray-400 mt-0.5">Income + Interest + Dividend</p>
             </div>
           </div>
         </Card>
@@ -265,7 +281,11 @@ export default function Dashboard() {
 
       {/* Spending by category + this month's totals */}
       <Card>
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Spending by Category (GBP)</h2>
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">
+          Spending by Category (GBP)
+          {(availableMonths?.find((m) => m.year === activeMonth.year && m.month === activeMonth.month)?.label) &&
+            ` · ${availableMonths!.find((m) => m.year === activeMonth.year && m.month === activeMonth.month)!.label}`}
+        </h2>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-center">
           <div className="lg:col-span-2">
             {chartData.length === 0 ? (
@@ -306,19 +326,19 @@ export default function Dashboard() {
             <div>
               <p className="text-sm text-gray-500">Total Income</p>
               <p className="text-xl font-bold text-green-600">
-                {formatCurrency(toDisplay(monthTotalsData?.income ?? 0, 'GBP'), displayCurrency)}
+                {formatCurrency(toDisplay(monthSummary?.total_income ?? 0, 'GBP'), displayCurrency)}
               </p>
             </div>
             <div>
               <p className="text-sm text-gray-500">Total Spending</p>
               <p className="text-xl font-bold text-red-600">
-                {formatCurrency(toDisplay(monthTotalsData?.spending ?? 0, 'GBP'), displayCurrency)}
+                {formatCurrency(toDisplay(monthSummary?.spending ?? 0, 'GBP'), displayCurrency)}
               </p>
             </div>
             <div className="pt-2 border-t border-gray-100">
               <p className="text-sm text-gray-500">Net</p>
-              <p className={`text-xl font-bold ${(monthTotalsData?.income ?? 0) - (monthTotalsData?.spending ?? 0) >= 0 ? 'text-gray-900' : 'text-red-600'}`}>
-                {formatCurrency(toDisplay((monthTotalsData?.income ?? 0) - (monthTotalsData?.spending ?? 0), 'GBP'), displayCurrency)}
+              <p className={`text-xl font-bold ${(monthSummary?.total_income ?? 0) - (monthSummary?.spending ?? 0) >= 0 ? 'text-gray-900' : 'text-red-600'}`}>
+                {formatCurrency(toDisplay((monthSummary?.total_income ?? 0) - (monthSummary?.spending ?? 0), 'GBP'), displayCurrency)}
               </p>
             </div>
           </div>

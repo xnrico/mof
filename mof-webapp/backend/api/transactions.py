@@ -336,3 +336,125 @@ async def get_month_totals(
         "net": income - spending,
         "currency": currency,
     }
+
+
+def _month_window(year: int, month: int) -> tuple[datetime, datetime]:
+    """[start, end) datetimes for the given calendar month."""
+    start = datetime(year, month, 1)
+    end = datetime(year + 1, 1, 1) if month == 12 else datetime(year, month + 1, 1)
+    return start, end
+
+
+# Income category groupings (effective category).
+_SALARY_CATS = {Category.SALARY}
+_ADDITIONAL_INCOME_CATS = {Category.INCOME, Category.INTEREST, Category.DIVIDEND}
+
+
+@router.get("/summary/available-months")
+async def get_available_months(user_id: int, db: AsyncSession = Depends(get_db)):
+    """Distinct (year, month) for which the user has transactions, newest first.
+
+    Returns [{year, month, label}] e.g. {year:2026, month:7, label:"July 2026"}.
+    """
+    accounts = (
+        await db.execute(select(Account).where(Account.user_id == user_id))
+    ).scalars().all()
+    account_ids = [a.id for a in accounts]
+    if not account_ids:
+        return []
+
+    rows = (
+        await db.execute(
+            select(
+                func.extract("year", Transaction.transaction_date).label("y"),
+                func.extract("month", Transaction.transaction_date).label("m"),
+            )
+            .where(
+                Transaction.account_id.in_(account_ids),
+                Transaction.is_hidden == False,
+            )
+            .distinct()
+        )
+    ).all()
+
+    months = sorted(
+        {(int(r.y), int(r.m)) for r in rows if r.y and r.m},
+        reverse=True,
+    )
+    names = ["", "January", "February", "March", "April", "May", "June",
+             "July", "August", "September", "October", "November", "December"]
+    return [{"year": y, "month": m, "label": f"{names[m]} {y}"} for y, m in months]
+
+
+@router.get("/summary/month")
+async def get_month_summary(
+    user_id: int,
+    year: int,
+    month: int,
+    currency: str = "GBP",
+    db: AsyncSession = Depends(get_db),
+):
+    """Everything the dashboard needs for one user for one calendar month, all
+    computed from the same window so the figures reconcile:
+
+    - salary: sum of Salary-category transactions in the month (0 if none yet).
+    - additional_income: sum of Income + Interest + Dividend categories.
+    - total_income: salary + additional_income (all positive income categories).
+    - spending: sum of |amount| for negative (expense) transactions.
+    - by_category: expense breakdown [{category, total, count}] (positive mags).
+
+    Only rows with include_in_accounting = true in the requested currency count.
+    """
+    accounts = (
+        await db.execute(select(Account).where(Account.user_id == user_id))
+    ).scalars().all()
+    account_ids = [a.id for a in accounts]
+
+    empty = {
+        "salary": 0.0, "additional_income": 0.0, "total_income": 0.0,
+        "spending": 0.0, "by_category": [], "currency": currency,
+    }
+    if not account_ids:
+        return empty
+
+    start, end = _month_window(year, month)
+    txns = (
+        await db.execute(
+            select(Transaction).where(
+                and_(
+                    Transaction.account_id.in_(account_ids),
+                    Transaction.is_hidden == False,
+                    Transaction.include_in_accounting == True,
+                    Transaction.currency == Currency(currency),
+                    Transaction.transaction_date >= start,
+                    Transaction.transaction_date < end,
+                )
+            )
+        )
+    ).scalars().all()
+
+    salary = 0.0
+    additional = 0.0
+    spending: dict = {}
+    for t in txns:
+        cat = t.category_override if t.category_override else t.category
+        if cat in _SALARY_CATS:
+            salary += abs(t.amount)
+        elif cat in _ADDITIONAL_INCOME_CATS:
+            additional += abs(t.amount)
+        # Spending pie: negative (expense) transactions only, positive magnitude.
+        if t.amount < 0:
+            cat_str = cat.value if hasattr(cat, "value") else str(cat)
+            row = spending.get(cat_str) or {"category": cat_str, "total": 0.0, "count": 0}
+            row["total"] += abs(t.amount)
+            row["count"] += 1
+            spending[cat_str] = row
+
+    return {
+        "salary": salary,
+        "additional_income": additional,
+        "total_income": salary + additional,
+        "spending": sum(r["total"] for r in spending.values()),
+        "by_category": list(spending.values()),
+        "currency": currency,
+    }

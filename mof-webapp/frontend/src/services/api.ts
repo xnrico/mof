@@ -120,6 +120,20 @@ export const api = {
     return response.data as MonthTotals;
   },
 
+  getAvailableMonths: async (userId: number) => {
+    const response = await client.get('/transactions/summary/available-months', {
+      params: { user_id: userId }
+    });
+    return response.data as AvailableMonth[];
+  },
+
+  getMonthSummary: async (userId: number, year: number, month: number, currency = 'GBP') => {
+    const response = await client.get('/transactions/summary/month', {
+      params: { user_id: userId, year, month, currency }
+    });
+    return response.data as MonthSummary;
+  },
+
   // Sync
   syncAccount: async (accountId: number, full = false, sinceDays?: number) => {
     const params: Record<string, unknown> = { full };
@@ -315,6 +329,21 @@ export interface MonthTotals {
   income: number;
   spending: number;
   net: number;
+  currency: string;
+}
+
+export interface AvailableMonth {
+  year: number;
+  month: number;
+  label: string;
+}
+
+export interface MonthSummary {
+  salary: number;
+  additional_income: number;
+  total_income: number;
+  spending: number;
+  by_category: CategorySummary[];
   currency: string;
 }
 
