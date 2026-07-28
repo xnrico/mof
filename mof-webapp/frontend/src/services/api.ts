@@ -101,11 +101,25 @@ export const api = {
     return response.data as AvailableMonth[];
   },
 
-  getMonthSummary: async (userId: number, year: number, month: number, currency = 'GBP') => {
+  getMonthSummary: async (
+    userId: number,
+    year: number,
+    month: number,
+    currency = 'GBP',
+    shared: 'include' | 'exclude' | 'only' = 'include',
+  ) => {
     const response = await client.get('/transactions/summary/month', {
-      params: { user_id: userId, year, month, currency }
+      params: { user_id: userId, year, month, currency, shared }
     });
     return response.data as MonthSummary;
+  },
+
+  downloadMonthlyReport: async (year: number, month: number, currency = 'GBP') => {
+    const response = await client.get('/transactions/report/month', {
+      params: { year, month, currency },
+      responseType: 'blob',
+    });
+    return response.data as Blob;
   },
 
   // Sync

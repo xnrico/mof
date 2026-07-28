@@ -2,7 +2,7 @@ import { useState } from 'react';
 import type { ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
-import { Wallet, TrendingUp } from 'lucide-react';
+import { Wallet, TrendingUp, FileDown } from 'lucide-react';
 import { api, formatCurrency, User, Account, CategorySummary } from '../services/api';
 
 // Soviet-poster palette: reds, propaganda gold, ink, and muted earth tones.
@@ -55,9 +55,26 @@ export default function Dashboard() {
     return a.user_id === activeUserId;
   });
 
-  // For the Daixu tab, aggregate income/summary across all users (each account
-  // belongs to exactly one user_id, so there's no double counting).
-  const summaryUserIds = isDaixu ? (users ?? []).map((u) => u.id) : (activeUserId != null ? [activeUserId] : []);
+  // Which per-account summaries to fetch so each account is counted exactly
+  // once and shared (Daixu) spending is never mis-attributed to a person:
+  //  - Daixu tab: every user's PERSONAL accounts (shared=exclude) + one call
+  //    for the whole shared pool (shared=only).
+  //  - a user, toggle on: their personal accounts + the shared pool.
+  //  - a user, toggle off: their personal accounts only.
+  const summaryCalls: { userId: number; shared: 'exclude' | 'only' }[] = (() => {
+    if (isDaixu) {
+      const calls = (users ?? []).map((u) => ({ userId: u.id, shared: 'exclude' as const }));
+      const anyUser = (users ?? [])[0];
+      if (anyUser) calls.push({ userId: anyUser.id, shared: 'only' });
+      return calls;
+    }
+    if (activeUserId == null) return [];
+    const calls: { userId: number; shared: 'exclude' | 'only' }[] = [
+      { userId: activeUserId, shared: 'exclude' },
+    ];
+    if (includeShared) calls.push({ userId: activeUserId, shared: 'only' });
+    return calls;
+  })();
 
   // Available months to populate the selector — union across the tab's users,
   // newest first. Uses the whole user set so the list is stable across tabs.
@@ -84,10 +101,11 @@ export default function Dashboard() {
   // figures (salary, additional income, spending pie) come from this single
   // month window so they reconcile: total_income = salary + additional_income.
   const { data: monthSummary } = useQuery({
-    queryKey: ['month-summary', summaryUserIds, activeMonth.year, activeMonth.month, displayCurrency],
+    queryKey: ['month-summary', summaryCalls, activeMonth.year, activeMonth.month, displayCurrency],
     queryFn: async () => {
       const rows = await Promise.all(
-        summaryUserIds.map((id) => api.getMonthSummary(id, activeMonth.year, activeMonth.month, displayCurrency))
+        summaryCalls.map((c) =>
+          api.getMonthSummary(c.userId, activeMonth.year, activeMonth.month, displayCurrency, c.shared))
       );
       const byCat: Record<string, CategorySummary> = {};
       let salary = 0, additional = 0, spending = 0;
@@ -108,7 +126,7 @@ export default function Dashboard() {
         by_category: Object.values(byCat),
       };
     },
-    enabled: summaryUserIds.length > 0,
+    enabled: summaryCalls.length > 0,
   });
 
   // Convert any amount into the selected display currency using the FX rate.
@@ -136,6 +154,30 @@ export default function Dashboard() {
     .sort((a, b) => b.total - a.total)
     .map((s) => ({ name: s.category, value: Math.round(s.total * 100) / 100 }));
   const spendingTotal = chartData.reduce((sum, d) => sum + d.value, 0);
+
+  // Download the comprehensive family PDF report for the active month. The
+  // report always covers the whole Daixu family regardless of the active tab.
+  const [downloading, setDownloading] = useState(false);
+  async function handleDownloadReport() {
+    if (downloading) return;
+    setDownloading(true);
+    try {
+      const blob = await api.downloadMonthlyReport(activeMonth.year, activeMonth.month, displayCurrency);
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `daixu-finance-${activeMonth.year}-${String(activeMonth.month).padStart(2, '0')}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error('Report download failed', e);
+      alert('Could not generate the report. Please try again.');
+    } finally {
+      setDownloading(false);
+    }
+  }
 
   return (
     <div className="px-4 py-6 space-y-6">
@@ -211,6 +253,17 @@ export default function Dashboard() {
             <option key={`${m.year}-${m.month}`} value={`${m.year}-${m.month}`}>{m.label}</option>
           ))}
         </select>
+
+        {/* Download the full family PDF report for the selected month. */}
+        <button
+          onClick={handleDownloadReport}
+          disabled={downloading}
+          className="sov-btn inline-flex items-center gap-2 disabled:opacity-60"
+          title="Download a full PDF analysis of the family's finances this month"
+        >
+          <FileDown className="h-4 w-4" />
+          {downloading ? 'Generating…' : 'Download Report'}
+        </button>
       </div>
 
       {/* Shared-account toggle (per-user tabs only; Daixu always includes all) */}

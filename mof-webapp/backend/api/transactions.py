@@ -1,9 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, or_, func
 from typing import List
 from pydantic import BaseModel
 from datetime import datetime
+from io import BytesIO
 
 from models.database import get_db
 from models.models import Transaction, Account, Category, Currency
@@ -242,6 +244,85 @@ _SALARY_CATS = {Category.SALARY}
 _ADDITIONAL_INCOME_CATS = {Category.INCOME, Category.INTEREST, Category.DIVIDEND}
 
 
+async def _resolve_account_ids(db: AsyncSession, user_id: int, shared: str) -> list[int]:
+    """Account ids to include for a summary, per the `shared` scope.
+
+    Shared ("Daixu") accounts carry the creator's user_id but belong to the
+    household pool, not that person. Scoping keeps them out of personal views
+    and lets the pool be summed exactly once:
+      - "include": all of the user's accounts (legacy behaviour).
+      - "exclude": the user's own, non-shared accounts only.
+      - "only":    every shared account across all users (user_id ignored).
+    """
+    if shared == "only":
+        query = select(Account).where(Account.is_shared == True)
+    elif shared == "exclude":
+        query = select(Account).where(
+            and_(Account.user_id == user_id, Account.is_shared == False)
+        )
+    else:  # "include"
+        query = select(Account).where(Account.user_id == user_id)
+    accounts = (await db.execute(query)).scalars().all()
+    return [a.id for a in accounts]
+
+
+async def _compute_month_summary(
+    db: AsyncSession, account_ids: list[int], year: int, month: int, currency: str
+) -> dict:
+    """Core month-summary math over a fixed set of accounts. See get_month_summary."""
+    empty = {
+        "salary": 0.0, "additional_income": 0.0, "total_income": 0.0,
+        "spending": 0.0, "by_category": [], "currency": currency,
+    }
+    if not account_ids:
+        return empty
+
+    from services.fx_service import get_rates
+    rates = await get_rates(db)
+    convert = _make_converter(float(rates.get("GBP_USD") or 1.27), currency)
+
+    start, end = _month_window(year, month)
+    txns = (
+        await db.execute(
+            select(Transaction).where(
+                and_(
+                    Transaction.account_id.in_(account_ids),
+                    Transaction.is_hidden == False,
+                    Transaction.include_in_accounting == True,
+                    Transaction.transaction_date >= start,
+                    Transaction.transaction_date < end,
+                )
+            )
+        )
+    ).scalars().all()
+
+    salary = 0.0
+    additional = 0.0
+    spending: dict = {}
+    for t in txns:
+        cat = t.category_override if t.category_override else t.category
+        amt = convert(abs(t.amount), t.currency.value if hasattr(t.currency, "value") else str(t.currency))
+        if cat in _SALARY_CATS:
+            salary += amt
+        elif cat in _ADDITIONAL_INCOME_CATS:
+            additional += amt
+        if t.amount < 0:
+            cat_str = cat.value if hasattr(cat, "value") else str(cat)
+            row = spending.get(cat_str) or {"category": cat_str, "total": 0.0, "count": 0}
+            row["total"] += amt
+            row["count"] += 1
+            spending[cat_str] = row
+
+    return {
+        "salary": salary,
+        "additional_income": additional,
+        "total_income": salary + additional,
+        "spending": sum(r["total"] for r in spending.values()),
+        "by_category": list(spending.values()),
+        "currency": currency,
+    }
+
+
 @router.get("/summary/available-months")
 async def get_available_months(user_id: int, db: AsyncSession = Depends(get_db)):
     """Distinct (year, month) for which the user has transactions, newest first.
@@ -284,6 +365,7 @@ async def get_month_summary(
     year: int,
     month: int,
     currency: str = "GBP",
+    shared: str = "include",
     db: AsyncSession = Depends(get_db),
 ):
     """Everything the dashboard needs for one user for one calendar month, all
@@ -295,65 +377,48 @@ async def get_month_summary(
     - spending: sum of |amount| for negative (expense) transactions.
     - by_category: expense breakdown [{category, total, count}] (positive mags).
 
+    `shared` scopes which accounts count (see _resolve_account_ids):
+      - "include" (default): all of the user's accounts.
+      - "exclude": personal (non-shared) accounts only — keeps the Daixu pool
+        out of an individual's figures.
+      - "only": every shared account, across all users (user_id ignored).
+
     Transactions in ALL currencies are included and converted to `currency`
     using the cached FX rate, so e.g. USD salary/spend still counts. Only rows
     with include_in_accounting = true are counted.
     """
-    accounts = (
-        await db.execute(select(Account).where(Account.user_id == user_id))
-    ).scalars().all()
-    account_ids = [a.id for a in accounts]
+    account_ids = await _resolve_account_ids(db, user_id, shared)
+    return await _compute_month_summary(db, account_ids, year, month, currency)
 
-    empty = {
-        "salary": 0.0, "additional_income": 0.0, "total_income": 0.0,
-        "spending": 0.0, "by_category": [], "currency": currency,
-    }
-    if not account_ids:
-        return empty
 
-    # FX rate for converting non-target currencies into `currency`.
-    from services.fx_service import get_rates
-    rates = await get_rates(db)
-    convert = _make_converter(float(rates.get("GBP_USD") or 1.27), currency)
+@router.get("/report/month")
+async def download_month_report(
+    year: int,
+    month: int,
+    currency: str = "GBP",
+    db: AsyncSession = Depends(get_db),
+):
+    """Comprehensive Daixu-family PDF report for a calendar month.
 
-    start, end = _month_window(year, month)
-    txns = (
-        await db.execute(
-            select(Transaction).where(
-                and_(
-                    Transaction.account_id.in_(account_ids),
-                    Transaction.is_hidden == False,
-                    Transaction.include_in_accounting == True,
-                    Transaction.transaction_date >= start,
-                    Transaction.transaction_date < end,
-                )
-            )
-        )
-    ).scalars().all()
+    Compares the month against the previous one across each family member,
+    the shared pool, and the family total; includes charts, category tables,
+    and rule-based financial advice. Returns application/pdf.
+    """
+    if currency not in ("GBP", "USD"):
+        raise HTTPException(400, "currency must be GBP or USD")
+    if not (1 <= month <= 12):
+        raise HTTPException(400, "month must be 1-12")
 
-    salary = 0.0
-    additional = 0.0
-    spending: dict = {}
-    for t in txns:
-        cat = t.category_override if t.category_override else t.category
-        amt = convert(abs(t.amount), t.currency.value if hasattr(t.currency, "value") else str(t.currency))
-        if cat in _SALARY_CATS:
-            salary += amt
-        elif cat in _ADDITIONAL_INCOME_CATS:
-            additional += amt
-        # Spending pie: negative (expense) transactions only, positive magnitude.
-        if t.amount < 0:
-            cat_str = cat.value if hasattr(cat, "value") else str(cat)
-            row = spending.get(cat_str) or {"category": cat_str, "total": 0.0, "count": 0}
-            row["total"] += amt
-            row["count"] += 1
-            spending[cat_str] = row
+    from services.report_service import (
+        gather_report_data, render_report_pdf, month_label,
+    )
 
-    return {
-        "salary": salary,
-        "additional_income": additional,
-        "total_income": salary + additional,
-        "spending": sum(r["total"] for r in spending.values()),
-        "by_category": list(spending.values()),
-        "currency": currency,
-    }
+    data = await gather_report_data(db, year, month, currency)
+    pdf_bytes = render_report_pdf(data)
+
+    fname = f"daixu-finance-{year}-{month:02d}.pdf"
+    return StreamingResponse(
+        BytesIO(pdf_bytes),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{fname}"'},
+    )

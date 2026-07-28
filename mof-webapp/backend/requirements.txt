@@ -16,6 +16,9 @@ gocardless-pro==1.49.0
 ib-insync==0.9.86
 trading212==0.1.6
 
+# Reporting (PDF generation)
+reportlab==4.2.2
+
 # Task Scheduling
 apscheduler==3.10.4
 
