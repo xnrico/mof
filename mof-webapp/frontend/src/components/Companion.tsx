@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
   CharacterId, idleLine, hoverLine, panicLine, ouchLine, scoldLine, retortLine,
-  talkBus, bubbleMs,
+  talkBus, speakFloor, bubbleMs,
 } from './companionDialogue';
 
 // Sprite sheet geometry (see scripts that generated public/sprites/*.png).
@@ -90,10 +90,11 @@ export default function Companion({ who, name, bubble, startFrac, speed, aspect 
     // retorts when the penguin scolds. A response never re-emits, so it stops.
     const off = talkBus.on((e) => {
       if (S.mode === 'panic' || S.mode === 'fall') return;
+      // Wait for the other's bubble to clear, then reply holding the floor.
       if (who === 'penguin' && e === 'mock') {
-        setTimeout(() => speak(scoldLine().text), 700);
+        setTimeout(() => { if (S.mode === 'walk') speakNow(scoldLine().text); }, 2600);
       } else if (who === 'kangaroo' && e === 'scold') {
-        setTimeout(() => speak(retortLine().text), 700);
+        setTimeout(() => { if (S.mode === 'walk') speakNow(retortLine().text); }, 2600);
       }
     });
 
@@ -101,7 +102,17 @@ export default function Companion({ who, name, bubble, startFrac, speed, aspect 
     function speak(text: string) {
       setSay(text);
       window.clearTimeout(bubbleTimer);
-      bubbleTimer = window.setTimeout(() => setSay(null), bubbleMs(text));
+      const ms = bubbleMs(text);
+      bubbleTimer = window.setTimeout(() => {
+        setSay(null);
+        speakFloor.release(who);
+      }, ms);
+    }
+    // Interaction bubbles (hover/drag/fall) take priority and hold the floor so
+    // the other companion won't start idle chatter over them.
+    function speakNow(text: string) {
+      speakFloor.hold(who, bubbleMs(text) + 500, performance.now());
+      speak(text);
     }
 
     function setMode(m: Mode) {
@@ -148,13 +159,23 @@ export default function Companion({ who, name, bubble, startFrac, speed, aspect 
           else if (S.x >= hiBound) { S.x = hiBound; S.dir = -1; }
         }
         S.y = S.ground;
-        // Idle chatter.
+        // Idle chatter — but take turns: only speak if the other companion
+        // isn't currently holding the speaking floor, so bubbles never overlap.
         if (now >= S.nextTalk) {
-          const line = idleLine(who);
-          speak(line.text);
-          if (line.intent === 'scold') talkBus.emit('scold');
-          if (line.intent === 'mock') talkBus.emit('mock');
-          S.nextTalk = now + 7000 + Math.random() * 8000;
+          if (speakFloor.busy(who, now)) {
+            // Someone else is talking; check back shortly and let them finish.
+            S.nextTalk = now + 800;
+          } else {
+            const line = idleLine(who);
+            const dur = bubbleMs(line.text);
+            // Hold the floor for the bubble plus a short beat, so the reply
+            // (scold/mock cross-talk) lands after this one clears.
+            speakFloor.claim(who, dur + 900, now);
+            speak(line.text);
+            if (line.intent === 'scold') talkBus.emit('scold');
+            if (line.intent === 'mock') talkBus.emit('mock');
+            S.nextTalk = now + dur + 5000 + Math.random() * 7000;
+          }
         }
       } else if (S.mode === 'dance') {
         // Dancing "left" in place; nudge slightly left for a shuffle feel.
@@ -177,7 +198,7 @@ export default function Companion({ who, name, bubble, startFrac, speed, aspect 
           } else if (!S.landed) {
             S.landed = true; S.landedT = now;
             S.vy = 0;
-            speak(ouchLine(who).text);       // OUCH! on the frame it lands
+            speakNow(ouchLine(who).text);    // OUCH! on the frame it lands
             if (navigator.vibrate) navigator.vibrate(30);
           }
         }
@@ -225,7 +246,7 @@ export default function Companion({ who, name, bubble, startFrac, speed, aspect 
         pending = false;
         S.dragging = true;
         setMode('panic');
-        speak(panicLine(who).text);
+        speakNow(panicLine(who).text);
         if (navigator.vibrate) navigator.vibrate(15);
       }
       if (S.dragging) {
@@ -260,22 +281,22 @@ export default function Companion({ who, name, bubble, startFrac, speed, aspect 
       }
     }
     function toggleDance() {
-      if (S.mode === 'dance') { setMode('walk'); setSay(null); }
-      else { setMode('dance'); speak(hoverLine(who).text); }
+      if (S.mode === 'dance') { setMode('walk'); setSay(null); speakFloor.release(who); }
+      else { setMode('dance'); speakNow(hoverLine(who).text); }
     }
 
     // Desktop hover (mouse only) → dance & speak; leaving → walk.
     function onEnter(e: PointerEvent) {
       if (e.pointerType !== 'mouse') return;
-      if (S.mode === 'walk') { setMode('dance'); speak(hoverLine(who).text); }
+      if (S.mode === 'walk') { setMode('dance'); speakNow(hoverLine(who).text); }
     }
     function onLeave(e: PointerEvent) {
       if (e.pointerType !== 'mouse') return;
-      if (S.mode === 'dance') { setMode('walk'); setSay(null); }
+      if (S.mode === 'dance') { setMode('walk'); setSay(null); speakFloor.release(who); }
     }
     // Refresh the bubble every few seconds while the mouse lingers.
     const danceTalk = window.setInterval(() => {
-      if (S.mode === 'dance') speak(hoverLine(who).text);
+      if (S.mode === 'dance') speakNow(hoverLine(who).text);
     }, 4200);
 
     node.addEventListener('pointerdown', onDown);

@@ -171,6 +171,34 @@ export const talkBus = {
   on(h: BusHandler) { handlers.add(h); return () => { handlers.delete(h); }; },
 };
 
+// ── Speaking floor: only one companion may hold an idle bubble at a time, so
+//    their speech bubbles never overlap while both are walking. A holder claims
+//    the floor, then releases it when its bubble clears. Interaction bubbles
+//    (hover/drag/fall) bypass the floor — those are user-driven and take
+//    priority — but they still park the floor so idle chatter waits its turn.
+let floorHolder: CharacterId | null = null;
+let floorUntil = 0;
+export const speakFloor = {
+  /** Try to claim the idle speaking floor. Returns false if someone else holds it. */
+  claim(who: CharacterId, ms: number, now: number): boolean {
+    if (floorHolder && floorHolder !== who && now < floorUntil) return false;
+    floorHolder = who;
+    floorUntil = now + ms;
+    return true;
+  },
+  /** Force-hold the floor (interaction bubbles) so the other stays quiet. */
+  hold(who: CharacterId, ms: number, now: number): void {
+    floorHolder = who;
+    floorUntil = now + ms;
+  },
+  release(who: CharacterId): void {
+    if (floorHolder === who) { floorHolder = null; floorUntil = 0; }
+  },
+  busy(who: CharacterId, now: number): boolean {
+    return !!floorHolder && floorHolder !== who && now < floorUntil;
+  },
+};
+
 /** How long a bubble stays up: enough to comfortably finish reading,
  *  scaled by length (roughly a relaxed reading pace + a base dwell). */
 export function bubbleMs(text: string): number {
