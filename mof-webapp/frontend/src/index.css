@@ -202,6 +202,21 @@ code {
   .app-chrome { background: #ffffff !important; backdrop-filter: none !important; }
 }
 
+/* Companion speech bubble — materialize (scale + fade) rather than a plain
+   fade, so it reads as a real bubble popping into place near the character. */
+.companion-bubble {
+  animation: bubble-pop 0.28s cubic-bezier(0.32, 0.72, 0, 1) both;
+  transform-origin: 50% 100%;
+}
+@keyframes bubble-pop {
+  from { opacity: 0; transform: translateX(-50%) scale(0.82); }
+  to   { opacity: 1; transform: translateX(-50%) scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .companion-bubble { animation: bubble-fade 0.2s ease both; }
+  @keyframes bubble-fade { from { opacity: 0; } to { opacity: 1; } }
+}
+
 @media (prefers-contrast: more) {
   .sov-card { border-color: rgba(0, 0, 0, 0.35); }
   .sov-input { border-color: rgba(0, 0, 0, 0.45); }

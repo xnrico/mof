@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 import { Wallet, TrendingUp, FileDown } from 'lucide-react';
 import { api, formatCurrency, User, Account, CategorySummary } from '../services/api';
+import Companion from '../components/Companion';
 
 // Apple system palette (iOS/macOS system colours) — distinct, legible hues that
 // read as one family in both light and dark surroundings.
@@ -399,6 +400,22 @@ export default function Dashboard() {
           </div>
         </div>
       </Card>
+
+      {/* Interactive companions that roam the bottom of the page. */}
+      <Companion
+        who="penguin"
+        name="小企鹅"
+        bubble={{ bg: '#f3f4f6', border: '#6b7280', text: '#1f2937' }}
+        startFrac={0.25}
+        speed={42}
+      />
+      <Companion
+        who="kangaroo"
+        name="戴许"
+        bubble={{ bg: '#fdf1e0', border: '#b4772e', text: '#5b3d17' }}
+        startFrac={0.7}
+        speed={54}
+      />
     </div>
   );
 }
