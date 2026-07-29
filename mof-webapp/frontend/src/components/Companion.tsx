@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   CharacterId, idleLine, hoverLine, panicLine, ouchLine, scoldLine, retortLine,
   talkBus, bubbleMs,
@@ -294,7 +295,11 @@ export default function Companion({ who, name, bubble, startFrac, speed }: Props
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  return (
+  // Render into document.body via a portal. `position: fixed` resolves against
+  // the nearest transformed ancestor, and <main> carries a mount-fade transform
+  // that would otherwise trap the companion and make it scroll with the page.
+  // Portalling to body guarantees the character stays glued to the viewport.
+  return createPortal(
     <div
       ref={rootRef}
       className="fixed left-0 top-0 z-40 select-none"
@@ -347,6 +352,7 @@ export default function Companion({ who, name, bubble, startFrac, speed }: Props
           imageRendering: 'auto',
         }}
       />
-    </div>
+    </div>,
+    document.body,
   );
 }
