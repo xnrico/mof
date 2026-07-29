@@ -62,7 +62,7 @@ export default function Companion({ who, name, bubble, startFrac, speed }: Props
       const vw = window.innerWidth;
       // ~76px tall on phones, up to ~104px on desktop.
       const dh = Math.round(Math.max(72, Math.min(104, vw * 0.09)));
-      const dw = Math.round((152 / 180) * dh);
+      const dw = Math.round((139 / 180) * dh);
       S.dw = dw; S.dh = dh;
       // Sit on the bottom, clear of the mobile tab bar (~64px) on small screens.
       const bottomPad = vw < 640 ? 64 : 12;
@@ -189,7 +189,8 @@ export default function Companion({ who, name, bubble, startFrac, speed }: Props
       const sp = spriteRef.current;
       if (sp) {
         sp.style.backgroundPositionX = `${-S.frame * S.dw}px`;
-        sp.style.transform = S.dir === 1 ? 'scaleX(-1)' : 'scaleX(1)';
+        // Art faces RIGHT by default: flip only when moving/facing left.
+        sp.style.transform = S.dir === -1 ? 'scaleX(-1)' : 'scaleX(1)';
       }
       raf = requestAnimationFrame(tick);
     }
@@ -326,8 +327,8 @@ export default function Companion({ who, name, bubble, startFrac, speed }: Props
         </div>
       )}
 
-      {/* Name label — only while walking. */}
-      {showName && (
+      {/* Name label — only while walking, and never behind a bubble. */}
+      {showName && !say && (
         <div
           className="absolute left-1/2 -translate-x-1/2 bottom-full mb-0.5
                      text-[11px] font-semibold pointer-events-none whitespace-nowrap"

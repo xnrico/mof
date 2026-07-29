@@ -171,7 +171,8 @@ export const talkBus = {
   on(h: BusHandler) { handlers.add(h); return () => { handlers.delete(h); }; },
 };
 
-/** How long a bubble stays up: enough to read, scaled by length. */
+/** How long a bubble stays up: enough to comfortably finish reading,
+ *  scaled by length (roughly a relaxed reading pace + a base dwell). */
 export function bubbleMs(text: string): number {
-  return Math.min(6500, 2600 + text.length * 45);
+  return Math.min(9000, 4000 + text.length * 75);
 }
