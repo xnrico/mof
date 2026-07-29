@@ -24,9 +24,11 @@ interface Props {
   startFrac: number;
   /** Walk speed in px/s. */
   speed: number;
+  /** Sprite cell aspect ratio (frame width / height); differs per character. */
+  aspect: number;
 }
 
-export default function Companion({ who, name, bubble, startFrac, speed }: Props) {
+export default function Companion({ who, name, bubble, startFrac, speed, aspect }: Props) {
   const rootRef = useRef<HTMLDivElement>(null);
   const spriteRef = useRef<HTMLDivElement>(null);
   const [say, setSay] = useState<string | null>(null);
@@ -63,7 +65,7 @@ export default function Companion({ who, name, bubble, startFrac, speed }: Props
       const vw = window.innerWidth;
       // ~76px tall on phones, up to ~104px on desktop.
       const dh = Math.round(Math.max(72, Math.min(104, vw * 0.09)));
-      const dw = Math.round((139 / 180) * dh);
+      const dw = Math.round(aspect * dh);
       S.dw = dw; S.dh = dh;
       // Sit on the bottom, clear of the mobile tab bar (~64px) on small screens.
       const bottomPad = vw < 640 ? 64 : 12;
@@ -136,9 +138,14 @@ export default function Companion({ who, name, bubble, startFrac, speed }: Props
       // Behaviour per mode.
       if (S.mode === 'walk') {
         if (!S.reduced) {
+          // Turn around before the edge so the centred speech bubble (which
+          // extends beyond the sprite) doesn't get clipped by the viewport.
+          const bubbleReach = Math.max(0, (110 - S.dw / 2));
+          const loBound = Math.min(bubbleReach, maxX / 2);
+          const hiBound = Math.max(maxX - bubbleReach, maxX / 2);
           S.x += S.dir * speed * dt;
-          if (S.x <= 0) { S.x = 0; S.dir = 1; }
-          else if (S.x >= maxX) { S.x = maxX; S.dir = -1; }
+          if (S.x <= loBound) { S.x = loBound; S.dir = 1; }
+          else if (S.x >= hiBound) { S.x = hiBound; S.dir = -1; }
         }
         S.y = S.ground;
         // Idle chatter.

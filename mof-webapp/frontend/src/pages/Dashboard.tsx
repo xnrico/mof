@@ -408,6 +408,7 @@ export default function Dashboard() {
         bubble={{ bg: '#f3f4f6', border: '#6b7280', text: '#1f2937' }}
         startFrac={0.25}
         speed={42}
+        aspect={178 / 180}
       />
       <Companion
         who="kangaroo"
@@ -415,6 +416,7 @@ export default function Dashboard() {
         bubble={{ bg: '#fdf1e0', border: '#b4772e', text: '#5b3d17' }}
         startFrac={0.7}
         speed={54}
+        aspect={163 / 180}
       />
     </div>
   );
