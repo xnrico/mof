@@ -1,9 +1,9 @@
 /** @type {import('tailwindcss').Config} */
-// Soviet-constructivist theme: the app leans on `blue` as its primary accent
-// and `purple` for the shared "Daixu" pool. We remap those two palettes to a
-// Soviet red and a propaganda-poster gold so the whole UI reskins centrally
-// without touching every component. Reds are kept legible (600/700 for solid
-// buttons, white text) so it stays modern and readable on PC and mobile.
+// Apple-style theme: a central reskin, not per-component. The app leans on the
+// `blue` palette as its primary accent and `purple` for the shared "Daixu" pool,
+// so we remap those two ramps to Apple's systemBlue and systemIndigo. Every
+// existing `bg-blue-*/text-purple-*` class picks up the Apple hues automatically.
+// `paper`/`ink` become the macOS/iOS light-mode canvas + label colours.
 export default {
   content: [
     "./index.html",
@@ -12,41 +12,47 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        // Display: condensed constructivist caps. Body: condensed sans so all
-        // ordinary text reads poster-like too (not the neutral Roboto).
-        display: ['Oswald', 'Roboto Condensed', 'sans-serif'],
-        sans: ['Roboto Condensed', 'Oswald', 'system-ui', 'sans-serif'],
+        // The platform system font ships optical sizing, tracking tables and
+        // legibility tuning for free — use it for both display and body.
+        display: ['-apple-system', 'BlinkMacSystemFont', 'SF Pro Display', 'system-ui', 'Segoe UI', 'Roboto', 'sans-serif'],
+        sans: ['-apple-system', 'BlinkMacSystemFont', 'SF Pro Text', 'system-ui', 'Segoe UI', 'Roboto', 'sans-serif'],
       },
       colors: {
-        // Soviet red ramp (replaces blue as the primary accent everywhere).
+        // Apple systemBlue ramp (the primary accent everywhere).
         blue: {
-          50: '#fbeaea',
-          100: '#f6d0d0',
-          200: '#ec9f9f',
-          300: '#e06d6d',
-          400: '#d23f3f',
-          500: '#c1201a',
-          600: '#a01410',
-          700: '#7d0f0c',
-          800: '#5c0b09',
-          900: '#3d0706',
+          50: '#eef4ff',
+          100: '#dbe8ff',
+          200: '#b8d2ff',
+          300: '#8ab6ff',
+          400: '#5a97ff',
+          500: '#0a84ff', // iOS systemBlue (dark-vibrant)
+          600: '#007aff', // iOS systemBlue (light)
+          700: '#0060df',
+          800: '#0048ab',
+          900: '#00337a',
         },
-        // Propaganda gold (replaces purple, used for the shared Daixu pool).
+        // Apple systemIndigo ramp (the shared Daixu pool accent).
         purple: {
-          50: '#fdf6e3',
-          100: '#fae9bd',
-          200: '#f3d585',
-          300: '#eabf4d',
-          400: '#e0a92a',
-          500: '#c8901a',
-          600: '#a67214',
-          700: '#835811',
-          800: '#5f3f0d',
-          900: '#3f2a09',
+          50: '#eeeeff',
+          100: '#e0e0ff',
+          200: '#c6c6fb',
+          300: '#a5a5f5',
+          400: '#8080ec',
+          500: '#5e5ce6', // iOS systemIndigo
+          600: '#4b49d6',
+          700: '#3d3bb8',
+          800: '#302e92',
+          900: '#232170',
         },
-        // Aged-paper background for the constructivist look.
-        paper: '#f4efe6',
-        ink: '#1a1512',
+        // Light-mode canvas + label colours.
+        paper: '#f5f5f7', // macOS window background
+        ink: '#1d1d1f',   // near-black label colour
+      },
+      borderRadius: {
+        // Apple's continuous-corner feel: generous, soft radii.
+        xl: '0.875rem',
+        '2xl': '1.125rem',
+        '3xl': '1.5rem',
       },
     },
   },

@@ -108,7 +108,7 @@ export default function TrueLayerCallback() {
           <p className="text-gray-500 mb-6">Your account is connected and ready to sync.</p>
           <button
             onClick={() => navigate('/accounts')}
-            className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+            className="sov-btn px-6"
           >
             Go to Accounts
           </button>
@@ -176,7 +176,7 @@ export default function TrueLayerCallback() {
                 <button
                   onClick={() => setAccountMutation.mutate(a)}
                   disabled={setAccountMutation.isPending}
-                  className="px-4 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 disabled:opacity-50 flex-shrink-0 ml-4"
+                  className="sov-btn flex-shrink-0 ml-4"
                 >
                   {setAccountMutation.isPending && setAccountMutation.variables?.account_id === a.account_id
                     ? 'Linking…'

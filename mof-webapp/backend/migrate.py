@@ -214,7 +214,7 @@ async def run():
         existing = [r[0] for r in (await conn.execute(text(
             "SELECT unnest(enum_range(NULL::category))::text"
         ))).fetchall()]
-        for name in ("CAR", "INCOME"):
+        for name in ("CAR", "INCOME", "SHOPPING"):
             if name not in existing:
                 await conn.execute(text(f"ALTER TYPE category ADD VALUE '{name}'"))
                 print(f"  category enum: added {name}")

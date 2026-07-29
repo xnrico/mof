@@ -5,11 +5,12 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recha
 import { Wallet, TrendingUp, FileDown } from 'lucide-react';
 import { api, formatCurrency, User, Account, CategorySummary } from '../services/api';
 
-// Soviet-poster palette: reds, propaganda gold, ink, and muted earth tones.
+// Apple system palette (iOS/macOS system colours) — distinct, legible hues that
+// read as one family in both light and dark surroundings.
 const COLORS = [
-  '#a01410', '#c8901a', '#7d0f0c', '#e0a92a', '#5c0b09',
-  '#8a6d3b', '#c1201a', '#a67214', '#3d0706', '#d23f3f',
-  '#6b4f1d', '#835811', '#1a1512', '#b0522b',
+  '#007aff', '#5e5ce6', '#34c759', '#ff9500', '#ff375f',
+  '#5ac8fa', '#af52de', '#ffcc00', '#ff2d55', '#30b0c7',
+  '#a2845e', '#64d2ff', '#bf5af2', '#ff9f0a',
 ];
 
 function Card({ children }: { children: ReactNode }) {
@@ -182,15 +183,15 @@ export default function Dashboard() {
   return (
     <div className="px-4 py-6 space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Dashboard</h1>
+        <h1>Dashboard</h1>
         {users && users.length > 0 && (
           <div className="flex flex-wrap gap-2">
             <button
               onClick={() => setTab(DAIXU)}
-              className={`px-4 py-2 rounded-md text-sm font-medium ${
+              className={`px-4 py-2 rounded-full text-sm font-medium transition-[background-color,color] duration-200 active:scale-[0.97] ${
                 isDaixu
-                  ? 'bg-purple-600 text-white'
-                  : 'bg-white text-purple-700 shadow-sm hover:bg-purple-50'
+                  ? 'bg-purple-500 text-white shadow-sm'
+                  : 'bg-black/[0.05] text-purple-600 hover:bg-black/[0.08]'
               }`}
             >
               Daixu
@@ -199,10 +200,10 @@ export default function Dashboard() {
               <button
                 key={u.id}
                 onClick={() => setTab(u.id)}
-                className={`px-4 py-2 rounded-md text-sm font-medium ${
+                className={`px-4 py-2 rounded-full text-sm font-medium transition-[background-color,color] duration-200 active:scale-[0.97] ${
                   activeTab === u.id
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-white text-gray-700 shadow-sm hover:bg-gray-50'
+                    ? 'bg-blue-600 text-white shadow-sm'
+                    : 'bg-black/[0.05] text-neutral-700 hover:bg-black/[0.08]'
                 }`}
               >
                 {u.name}
@@ -212,15 +213,15 @@ export default function Dashboard() {
         )}
       </div>
 
-      {/* Currency switch */}
+      {/* Currency switch — iOS segmented control */}
       <div className="flex items-center gap-3 flex-wrap">
-        <div className="inline-flex rounded-md border border-gray-200 bg-white overflow-hidden">
+        <div className="inline-flex p-0.5 rounded-[10px] bg-black/[0.05]">
           {(['GBP', 'USD'] as const).map((c) => (
             <button
               key={c}
               onClick={() => setDisplayCurrency(c)}
-              className={`px-3 py-1.5 text-sm font-medium ${
-                displayCurrency === c ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-50'
+              className={`px-3.5 py-1 rounded-lg text-sm font-medium transition-[background-color,color] duration-200 active:scale-[0.97] ${
+                displayCurrency === c ? 'bg-white text-ink shadow-sm' : 'text-neutral-500 hover:text-ink'
               }`}
             >
               {c}
@@ -243,7 +244,7 @@ export default function Dashboard() {
             const [y, m] = e.target.value.split('-').map(Number);
             setSelectedMonth({ year: y, month: m });
           }}
-          className="sm:ml-auto px-3 py-1.5 rounded-md border border-gray-200 text-sm bg-white"
+          className="sov-input sov-input-sm sm:ml-auto"
         >
           {(availableMonths && availableMonths.length > 0
             ? availableMonths
@@ -268,12 +269,12 @@ export default function Dashboard() {
 
       {/* Shared-account toggle (per-user tabs only; Daixu always includes all) */}
       {!isDaixu && (
-        <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer w-fit">
+        <label className="flex items-center gap-2 text-sm text-neutral-600 cursor-pointer w-fit">
           <input
             type="checkbox"
             checked={includeShared}
             onChange={(e) => setIncludeShared(e.target.checked)}
-            className="h-4 w-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+            className="h-4 w-4 rounded border-gray-300"
           />
           Include shared (Daixu) accounts in totals
         </label>
@@ -283,10 +284,10 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <Card>
           <div className="flex items-center gap-3">
-            <Wallet className="h-8 w-8 text-blue-600" />
+            <Wallet className="h-8 w-8 text-blue-600" strokeWidth={2} />
             <div>
               <p className="text-sm sov-stat-label">Total Balance ({displayCurrency})</p>
-              <div className="text-2xl sov-stat-value text-gray-900">
+              <div className="text-2xl sov-stat-value text-ink">
                 {Object.keys(balancesByCurrency).length === 0
                   ? '—'
                   : formatCurrency(totalInDisplay, displayCurrency)}

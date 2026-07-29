@@ -18,6 +18,7 @@ class Category(str, enum.Enum):
     CAR = "Car"
     HOUSING = "Housing"
     ENTERTAINMENT = "Entertainment"
+    SHOPPING = "Shopping"
     TOURISM = "Tourism"
     SUBSCRIPTIONS = "Subscriptions"
     SALARY = "Salary"

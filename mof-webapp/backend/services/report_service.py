@@ -29,7 +29,7 @@ _MONTHS = ["", "January", "February", "March", "April", "May", "June",
            "July", "August", "September", "October", "November", "December"]
 
 # Discretionary categories used for advice heuristics.
-_DISCRETIONARY = {"Food", "Entertainment", "Tourism", "Subscriptions"}
+_DISCRETIONARY = {"Food", "Entertainment", "Shopping", "Tourism", "Subscriptions"}
 
 _SYMBOLS = {"GBP": "£", "USD": "$"}
 

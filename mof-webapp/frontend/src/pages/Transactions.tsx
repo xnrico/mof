@@ -3,8 +3,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api, formatCurrency, Account, Transaction } from '../services/api';
 
 const CATEGORIES = [
-  'Food', 'Grocery', 'Transport', 'Car', 'Housing', 'Entertainment', 'Tourism',
-  'Subscriptions', 'Salary', 'Income', 'Investment', 'Investment Gain',
+  'Food', 'Grocery', 'Transport', 'Car', 'Housing', 'Entertainment', 'Shopping',
+  'Tourism', 'Subscriptions', 'Salary', 'Income', 'Investment', 'Investment Gain',
   'Investment Loss', 'Dividend', 'Interest', 'Other',
 ];
 
@@ -100,7 +100,7 @@ export default function Transactions() {
 
   return (
     <div className="px-4 py-6 space-y-4">
-      <h1 className="text-3xl font-bold text-gray-900">Transactions</h1>
+      <h1>Transactions</h1>
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row flex-wrap gap-3">
@@ -124,13 +124,13 @@ export default function Transactions() {
             <option key={c} value={c}>{c}</option>
           ))}
         </select>
-        <div className="inline-flex rounded-md border border-gray-300 bg-white overflow-hidden sm:ml-auto">
+        <div className="inline-flex p-0.5 rounded-[10px] bg-black/[0.05] sm:ml-auto">
           {(['GBP', 'USD'] as const).map((c) => (
             <button
               key={c}
               onClick={() => setPrimaryCurrency(c)}
-              className={`px-3 py-2 text-sm font-medium ${
-                primaryCurrency === c ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-50'
+              className={`px-3.5 py-1.5 rounded-lg text-sm font-medium transition-[background-color,color] duration-200 active:scale-[0.97] ${
+                primaryCurrency === c ? 'bg-white text-ink shadow-sm' : 'text-neutral-500 hover:text-ink'
               }`}
             >
               {c}
@@ -221,7 +221,7 @@ export default function Transactions() {
                         type="checkbox"
                         checked={t.include_in_accounting}
                         onChange={(e) => accountingMutation.mutate({ id: t.id, include: e.target.checked })}
-                        className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                        className="h-4 w-4 rounded border-gray-300 cursor-pointer"
                         title={t.include_in_accounting ? 'Included in accounting' : 'Excluded from accounting'}
                       />
                     </td>

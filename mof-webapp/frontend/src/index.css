@@ -2,119 +2,207 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ---- Soviet constructivist theme ---------------------------------------- */
+/* ---- Apple-style theme -------------------------------------------------------
+   A central reskin. The `.sov-*` class names are kept (every page already uses
+   them) but now render Apple's light-mode look: soft continuous corners, hairline
+   separators, translucent materials, system typography, and instant press
+   feedback. Change the look here, not across components. */
 
 :root {
-  --paper: #f4efe6;
-  --ink: #1a1512;
-  --red: #a01410;
-  --gold: #c8901a;
+  --paper: #f5f5f7;   /* macOS window background */
+  --ink: #1d1d1f;     /* primary label */
+  --ink-2: #6e6e73;   /* secondary label */
+  --accent: #007aff;  /* systemBlue */
+  --hairline: rgba(0, 0, 0, 0.1);
+  --card: rgba(255, 255, 255, 0.9);
+  --radius: 18px;
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.04), 0 8px 24px rgba(0, 0, 0, 0.06);
+  /* Standard critically-damped ease (no overshoot) for the whole UI. */
+  --ease-standard: cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+* {
+  /* Round the accent used by native controls (checkboxes, focus rings). */
+  accent-color: var(--accent);
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 body {
   margin: 0;
-  /* Condensed constructivist body face so ALL ordinary text (tables, buttons,
-     card labels/values) reads poster-like, not just the headings. */
-  font-family: 'Roboto Condensed', 'Oswald', system-ui, sans-serif;
-  font-weight: 500;
-  letter-spacing: 0.01em;
+  /* Platform system font — ships optical sizing, tracking, legibility tuning. */
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui,
+    'Segoe UI', Roboto, sans-serif;
+  font-weight: 400;
+  line-height: 1.47;
+  letter-spacing: -0.011em;   /* body tracking sits just below 0 on SF */
   color: var(--ink);
-  /* Aged paper with a faint constructivist diagonal texture. */
   background-color: var(--paper);
-  background-image:
-    repeating-linear-gradient(
-      45deg,
-      rgba(160, 20, 16, 0.03) 0px,
-      rgba(160, 20, 16, 0.03) 2px,
-      transparent 2px,
-      transparent 22px
-    );
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  /* Respect the home-indicator / notch when content reaches the edges. */
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
-/* Condensed uppercase display type for headings — poster-like. */
+/* Type scale: hierarchy from weight + size + leading, tracking tightens as
+   text grows (SF reads too loose at display sizes with default tracking). */
 h1, h2, h3, .font-display {
-  font-family: 'Oswald', 'Roboto Condensed', sans-serif;
-  letter-spacing: 0.02em;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui,
+    'Segoe UI', Roboto, sans-serif;
+  font-weight: 700;
+  color: var(--ink);
 }
-
 h1 {
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+  font-size: clamp(1.75rem, 4vw, 2.5rem);
+  line-height: 1.08;
+  letter-spacing: -0.021em;
+}
+h2 {
+  font-size: clamp(1.35rem, 3vw, 1.75rem);
+  line-height: 1.14;
+  letter-spacing: -0.019em;
+}
+h3 {
+  font-size: 1.125rem;
+  line-height: 1.2;
+  letter-spacing: -0.014em;
 }
 
 code {
-  font-family: 'Roboto Mono', Menlo, Monaco, Consolas, monospace;
+  font-family: 'SF Mono', ui-monospace, Menlo, Monaco, Consolas, monospace;
 }
 
-/* Reusable constructivist utilities. */
+/* Apple-style component utilities (same class names as before). */
 @layer components {
-  /* Hard-edged card with a heavy red top rule, like a poster panel. */
+  /* Card: white material, continuous soft corners, layered shadow, hairline. */
   .sov-card {
-    @apply bg-white rounded-none;
-    border: 1px solid rgba(26, 21, 18, 0.1);
-    border-top: 4px solid var(--red);
-    box-shadow: 4px 4px 0 0 rgba(26, 21, 18, 0.12);
+    background: #ffffff;
+    border-radius: var(--radius);
+    border: 1px solid var(--hairline);
+    box-shadow: var(--shadow-card);
+    overflow: hidden;
   }
 
-  /* Section banner: solid red block with condensed caps. */
+  /* Section banner: solid accent block. */
   .sov-banner {
-    @apply bg-blue-700 text-white font-display uppercase tracking-wider;
+    @apply bg-blue-600 text-white font-semibold rounded-2xl;
+    letter-spacing: -0.01em;
   }
 
-  /* Table header row: red block, gold condensed caps — like a poster masthead. */
+  /* Table header: quiet, grouped-list style — no heavy masthead. */
   .sov-thead {
-    @apply bg-blue-700;
+    background: rgba(0, 0, 0, 0.02);
   }
   .sov-thead th {
-    @apply text-purple-200 font-display uppercase tracking-wider;
+    @apply text-xs font-semibold;
+    color: var(--ink-2);
+    text-transform: uppercase;
+    letter-spacing: 0.02em;   /* small caps read better with a touch of tracking */
   }
 
-  /* Sub-group header row inside a table (e.g. owner/category bands). */
+  /* Sub-group header row inside a table (owner / category bands). */
   .sov-group-row {
-    @apply bg-blue-50 border-y-2 border-blue-700;
+    background: rgba(0, 122, 255, 0.06);
   }
   .sov-group-row td {
-    @apply text-blue-800 font-display font-semibold uppercase tracking-widest;
+    @apply font-semibold text-blue-700;
+    letter-spacing: -0.01em;
   }
 
-  /* Primary action button: solid red, hard edges, condensed caps. */
+  /* Primary action: filled pill, instant press feedback. */
   .sov-btn {
-    @apply inline-flex items-center gap-2 px-4 py-2 text-sm font-display font-semibold
-           uppercase tracking-wide rounded-none bg-blue-700 text-white
-           border-2 border-blue-700 transition-colors
-           hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold
+           bg-blue-600 text-white border-0
+           disabled:opacity-40 disabled:cursor-not-allowed;
+    border-radius: 980px;      /* Apple's fully-rounded control pill */
+    letter-spacing: -0.01em;
+    transition: transform 0.1s ease-out, background-color 0.2s ease,
+                box-shadow 0.2s ease;
+  }
+  .sov-btn:hover {
+    @apply bg-blue-500;
+  }
+  .sov-btn:active {
+    transform: scale(0.97);    /* feedback on press, not release */
   }
 
-  /* Secondary / outline button. */
+  /* Secondary: tinted pill (systemBlue on a translucent fill). */
   .sov-btn-outline {
-    @apply inline-flex items-center gap-2 px-4 py-2 text-sm font-display font-semibold
-           uppercase tracking-wide rounded-none bg-transparent text-blue-800
-           border-2 border-blue-700 transition-colors
-           hover:bg-blue-50 disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold
+           text-blue-600 border-0
+           disabled:opacity-40 disabled:cursor-not-allowed;
+    background: rgba(0, 122, 255, 0.1);
+    border-radius: 980px;
+    letter-spacing: -0.01em;
+    transition: transform 0.1s ease-out, background-color 0.2s ease;
+  }
+  .sov-btn-outline:hover {
+    background: rgba(0, 122, 255, 0.16);
+  }
+  .sov-btn-outline:active {
+    transform: scale(0.97);
   }
 
-  /* Stat-card label: condensed uppercase caption (e.g. "Salary (GBP)"). */
+  /* Stat-card label: quiet secondary caption. */
   .sov-stat-label {
-    @apply font-display uppercase tracking-wider;
-    color: rgba(26, 21, 18, 0.6);
+    @apply text-sm font-medium;
+    color: var(--ink-2);
+    letter-spacing: -0.006em;
   }
 
-  /* Big stat value: heavy condensed numerals. */
+  /* Big stat value: heavy, tight display numerals. */
   .sov-stat-value {
-    @apply font-display font-bold tracking-wide;
+    @apply font-bold;
+    letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
   }
 
-  /* Form field: hard edges, thick border, red focus ring. */
+  /* Form field: rounded, hairline border, soft focus ring. */
   .sov-input {
-    @apply w-full px-3 py-2 rounded-none border-2 bg-white text-sm
-           focus:border-blue-700 focus:outline-none focus:ring-0;
-    border-color: rgba(26, 21, 18, 0.2);
+    @apply w-full px-3.5 py-2.5 text-sm bg-white
+           focus:outline-none;
+    border: 1px solid var(--hairline);
+    border-radius: 12px;
+    color: var(--ink);
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+  .sov-input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3.5px rgba(0, 122, 255, 0.18);  /* iOS focus glow */
   }
 
   /* Compact variant for tight spots (table cells, inline forms). */
   .sov-input-sm {
-    @apply w-auto px-2 py-1 border;
+    @apply w-auto px-2.5 py-1.5;
+    border-radius: 9px;
   }
+}
+
+/* Gentle mount fade for page content (see .mount-fade below). */
+@keyframes mount-fade {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.mount-fade {
+  animation: mount-fade 0.45s var(--ease-standard) both;
+}
+
+/* Accessibility: gentler, non-vestibular equivalents. */
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .mount-fade { animation: none; }
+  .sov-btn, .sov-btn-outline { transition: background-color 0.2s ease; }
+  .sov-btn:active, .sov-btn-outline:active { transform: none; }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .app-chrome { background: #ffffff !important; backdrop-filter: none !important; }
+}
+
+@media (prefers-contrast: more) {
+  .sov-card { border-color: rgba(0, 0, 0, 0.35); }
+  .sov-input { border-color: rgba(0, 0, 0, 0.45); }
 }

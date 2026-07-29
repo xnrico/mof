@@ -1,6 +1,6 @@
 import { BrowserRouter as Router, Routes, Route, NavLink } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { Star, DollarSign, CreditCard, List, Settings as SettingsIcon, Wrench } from 'lucide-react';
+import { LayoutDashboard, CreditCard, List, SlidersHorizontal, Wrench } from 'lucide-react';
 import Dashboard from './pages/Dashboard';
 import Accounts from './pages/Accounts';
 import Transactions from './pages/Transactions';
@@ -11,10 +11,10 @@ import TrueLayerCallback from './pages/TrueLayerCallback';
 const queryClient = new QueryClient();
 
 const navItems = [
-  { to: '/', label: 'Dashboard', icon: DollarSign, end: true },
+  { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true },
   { to: '/accounts', label: 'Accounts', icon: CreditCard, end: false },
   { to: '/transactions', label: 'Transactions', icon: List, end: false },
-  { to: '/manage', label: 'Manage', icon: SettingsIcon, end: false },
+  { to: '/manage', label: 'Manage', icon: SlidersHorizontal, end: false },
   { to: '/settings', label: 'Settings', icon: Wrench, end: false },
 ];
 
@@ -23,42 +23,48 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <Router>
         <div className="min-h-screen">
-          {/* Navigation — Soviet poster header: solid red bar, gold rule, star */}
-          <nav className="bg-blue-700 text-white border-b-4 border-purple-500">
-            <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
-              <div className="flex items-center justify-between gap-2 h-16">
+          {/* Top bar — translucent material, content scrolls underneath. On
+              mobile it carries only the wordmark; navigation moves to the
+              bottom tab bar (the iOS convention). */}
+          <header className="app-chrome sticky top-0 z-30 border-b border-black/5
+                             bg-white/72 backdrop-blur-xl backdrop-saturate-150"
+                  style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+              <div className="flex items-center justify-between gap-4 h-14 sm:h-16">
                 <div className="flex-shrink-0 flex items-center min-w-0">
-                  <Star className="h-7 w-7 sm:h-8 sm:w-8 text-purple-300 fill-purple-400 flex-shrink-0" />
-                  <span className="ml-2 text-lg sm:text-2xl font-display font-bold uppercase tracking-widest truncate">
+                  <span className="text-[17px] sm:text-xl font-display font-bold tracking-tight text-ink truncate">
                     <span className="hidden sm:inline">Ministry of Finance</span>
-                    <span className="sm:hidden">MoF</span>
+                    <span className="sm:hidden">Finance</span>
                   </span>
                 </div>
-                <div className="flex items-center gap-1 sm:gap-4 overflow-x-auto">
+
+                {/* Desktop / tablet inline nav */}
+                <nav className="hidden sm:flex items-center gap-1">
                   {navItems.map(({ to, label, icon: Icon, end }) => (
                     <NavLink
                       key={to}
                       to={to}
                       end={end}
                       className={({ isActive }) =>
-                        `inline-flex flex-col sm:flex-row items-center px-2 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-sm font-display font-semibold uppercase tracking-wide flex-shrink-0 transition-colors ${
-                          isActive
-                            ? 'bg-purple-400 text-ink'
-                            : 'text-red-100 hover:bg-blue-600 hover:text-white'
-                        }`
+                        `inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-[13px] font-medium
+                         transition-[background-color,color] duration-200 active:scale-[0.97] ${
+                           isActive
+                             ? 'bg-black/[0.06] text-ink'
+                             : 'text-neutral-500 hover:text-ink hover:bg-black/[0.03]'
+                         }`
                       }
                     >
-                      <Icon className="h-5 w-5 sm:h-4 sm:w-4 sm:mr-2" />
-                      <span className="text-[10px] sm:text-sm">{label}</span>
+                      <Icon className="h-4 w-4" strokeWidth={2} />
+                      <span>{label}</span>
                     </NavLink>
                   ))}
-                </div>
+                </nav>
               </div>
             </div>
-          </nav>
+          </header>
 
-          {/* Main Content */}
-          <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+          {/* Main content */}
+          <main className="mount-fade max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8 pb-28 sm:pb-10">
             <Routes>
               <Route path="/" element={<Dashboard />} />
               <Route path="/accounts" element={<Accounts />} />
@@ -68,6 +74,30 @@ function App() {
               <Route path="/manage" element={<Manage />} />
             </Routes>
           </main>
+
+          {/* Mobile bottom tab bar — fixed translucent material, safe-area aware. */}
+          <nav className="app-chrome sm:hidden fixed bottom-0 inset-x-0 z-30
+                          border-t border-black/5 bg-white/80 backdrop-blur-xl backdrop-saturate-150"
+               style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+            <div className="flex items-stretch justify-around">
+              {navItems.map(({ to, label, icon: Icon, end }) => (
+                <NavLink
+                  key={to}
+                  to={to}
+                  end={end}
+                  className={({ isActive }) =>
+                    `flex flex-1 flex-col items-center justify-center gap-1 py-2 min-w-0
+                     transition-colors duration-150 active:scale-95 ${
+                       isActive ? 'text-blue-600' : 'text-neutral-400'
+                     }`
+                  }
+                >
+                  <Icon className="h-[22px] w-[22px]" strokeWidth={2} />
+                  <span className="text-[10px] font-medium leading-none truncate max-w-full">{label}</span>
+                </NavLink>
+              ))}
+            </div>
+          </nav>
         </div>
       </Router>
     </QueryClientProvider>
