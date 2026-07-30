@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
   CharacterId, idleLine, hoverLine, panicLine, ouchLine, scoldLine, retortLine, hopLine,
-  talkBus, speakFloor, bubbleMs,
+  talkBus, speakFloor, bubbleMs, registerBubbleClearer,
 } from './companionDialogue';
 
 // Sprite sheet geometry (see scripts that generated public/sprites/*.png).
@@ -127,6 +127,12 @@ export default function Companion({ who, name, bubble, startFrac, speed, aspect 
       speakFloor.hold(who, bubbleMs(text) + 500, performance.now());
       speak(text);
     }
+    // When the OTHER companion preempts (interaction/hop bubble), hide ours at
+    // once so two bubbles are never visible together and can't overlap.
+    const offClear = registerBubbleClearer(who, () => {
+      window.clearTimeout(bubbleTimer);
+      setSay(null);
+    });
 
     function setMode(m: Mode | 'hop') {
       if (S.mode === m) return;
@@ -403,6 +409,7 @@ export default function Companion({ who, name, bubble, startFrac, speed, aspect 
       window.clearInterval(danceTalk);
       window.clearTimeout(bubbleTimer);
       off();
+      offClear();
       node.removeEventListener('pointerdown', onDown);
       node.removeEventListener('pointermove', onMove);
       node.removeEventListener('pointerup', onUp);

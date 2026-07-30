@@ -346,9 +346,20 @@ export const talkBus = {
 // ── Speaking floor: only one companion may hold a bubble at a time, so their
 //    speech bubbles never overlap. A holder claims the floor, then releases it
 //    when its bubble clears. Interaction bubbles (hover/drag/fall/hop) force-hold
-//    the floor so idle chatter waits its turn.
+//    the floor so idle chatter waits its turn — and PREEMPT the other companion,
+//    clearing its bubble immediately, so two bubbles are never on screen at once
+//    (they'd overlap spatially even at the enforced body gap, since each bubble
+//    is much wider than a character).
 let floorHolder: CharacterId | null = null;
 let floorUntil = 0;
+
+// Each companion registers a callback that instantly hides its own bubble.
+const clearers = new Map<CharacterId, () => void>();
+export function registerBubbleClearer(who: CharacterId, fn: () => void): () => void {
+  clearers.set(who, fn);
+  return () => { if (clearers.get(who) === fn) clearers.delete(who); };
+}
+
 export const speakFloor = {
   claim(who: CharacterId, ms: number, now: number): boolean {
     if (floorHolder && floorHolder !== who && now < floorUntil) return false;
@@ -356,7 +367,9 @@ export const speakFloor = {
     floorUntil = now + ms;
     return true;
   },
+  /** Force-hold the floor (interaction bubbles) and clear the other's bubble. */
   hold(who: CharacterId, ms: number, now: number): void {
+    if (floorHolder && floorHolder !== who) clearers.get(floorHolder)?.();
     floorHolder = who;
     floorUntil = now + ms;
   },

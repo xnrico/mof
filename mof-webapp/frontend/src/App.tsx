@@ -32,9 +32,8 @@ function App() {
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
               <div className="flex items-center justify-between gap-4 h-14 sm:h-16">
                 <div className="flex-shrink-0 flex items-center min-w-0">
-                  <span className="text-[17px] sm:text-xl font-display font-bold tracking-tight text-ink truncate">
-                    <span className="hidden sm:inline">Ministry of Finance</span>
-                    <span className="sm:hidden">Finance</span>
+                  <span className="text-[15px] sm:text-xl font-display font-bold tracking-tight text-ink whitespace-nowrap">
+                    Ministry of Finance
                   </span>
                 </div>
 
