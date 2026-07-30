@@ -19,7 +19,7 @@ type Mode = 'walk' | 'dance' | 'panic' | 'fall';
 // the other and never overlap. 戴许 (the hopper) leaps clear over 小企鹅 when it
 // closes in; a hard separation guard is the fallback for everyone else (the
 // penguin, reduced-motion, near-wall cases).
-interface Footprint { x: number; w: number; h: number; hopping: boolean }
+interface Footprint { x: number; px: number; w: number; h: number; hopping: boolean }
 const stage: Partial<Record<CharacterId, Footprint>> = {};
 
 interface Props {
@@ -163,7 +163,12 @@ export default function Companion({ who, name, bubble, startFrac, speed, aspect 
 
       // Behaviour per mode.
       if (S.mode === 'walk') {
-        if (!S.reduced) {
+        const other = stage[who === 'penguin' ? 'kangaroo' : 'penguin'];
+        // While 戴许 is airborne, 小企鹅 freezes so it stays a still target and
+        // never wanders into the landing spot (which used to defeat the jump).
+        const freeze = !!other && other.hopping && who === 'penguin';
+
+        if (!S.reduced && !freeze) {
           // Turn around before the edge so the centred speech bubble (which
           // extends beyond the sprite) doesn't get clipped by the viewport.
           const bubbleReach = Math.max(0, (110 - S.dw / 2));
@@ -176,26 +181,37 @@ export default function Companion({ who, name, bubble, startFrac, speed, aspect 
         S.y = S.ground;
 
         // ── Never overlap the other companion ──────────────────────────────
-        const other = stage[who === 'penguin' ? 'kangaroo' : 'penguin'];
-        if (other && !S.reduced) {
+        // Skip entirely while the other is mid-hop: don't shove an airborne
+        // companion, and let it complete its arc over a stationary target.
+        if (other && !S.reduced && !other.hopping) {
           const myC = S.x + S.dw / 2;
           const otherC = other.x + other.w / 2;
           const gap = Math.abs(myC - otherC);
           // Minimum breathing room between body centres (plus a little air).
           const minGap = S.dw / 2 + other.w / 2 + 14;
+          // Predict where the moving target will be by the time we land, so the
+          // hop clears it even when 小企鹅 is walking (not just when hovered).
+          const HOP_DUR = 620;
+          const otherVX = (other.x - other.px) / Math.max(dt, 1 / 120); // px/s
 
-          if (who === 'kangaroo' && !other.hopping && now >= S.hopCooldown
-              && gap < minGap + 34 && (myC < otherC ? S.dir === 1 : S.dir === -1)) {
-            // 戴许 hops clean over 小企鹅, landing on the far side with clearance.
+          if (who === 'kangaroo' && now >= S.hopCooldown
+              && gap < minGap + 40 && (myC < otherC ? S.dir === 1 : S.dir === -1)) {
+            // 戴许 hops clean over 小企鹅, landing on the far side with clearance,
+            // aiming past where the penguin will have walked to on touchdown.
             const dir: 1 | -1 = myC < otherC ? 1 : -1;
-            const landC = otherC + dir * (minGap + 24);
-            const landX = landC - S.dw / 2;
-            if (landX >= 0 && landX <= maxX) {
+            const otherLandC = otherC + otherVX * (HOP_DUR / 1000);
+            const landC = otherLandC + dir * (minGap + 26);
+            const landX = Math.max(0, Math.min(maxX, landC - S.dw / 2));
+            // Only commit if we truly end up clear of the target on landing.
+            if (Math.abs((landX + S.dw / 2) - otherLandC) >= minGap) {
               S.hopFromX = S.x;
               S.hopToX = landX;
               S.hopStart = now;
-              S.hopDur = 560;
-              S.hopArc = Math.max(46, S.dh * 0.7);
+              S.hopDur = HOP_DUR;
+              // Peak must lift the roo's feet above the penguin's head: since
+              // both are bottom-aligned on the same ground, the arc height has
+              // to exceed the taller of the two bodies (plus margin) to clear.
+              S.hopArc = Math.max(S.dh, other.h) + 22;
               S.dir = dir;
               setMode('hop');
               // A quick hop quip, only if it won't stomp on the other's bubble.
@@ -280,7 +296,8 @@ export default function Companion({ who, name, bubble, startFrac, speed, aspect 
       }
 
       // Publish footprint so the other companion can avoid / hop over us.
-      stage[who] = { x: S.x, w: S.dw, h: S.dh, hopping: S.mode === 'hop' };
+      // `px` is last frame's x, giving the other its horizontal velocity.
+      stage[who] = { x: S.x, px: stage[who]?.x ?? S.x, w: S.dw, h: S.dh, hopping: S.mode === 'hop' };
 
       // Commit transform (position + facing). Art faces left; flip when dir=1.
       const el = rootRef.current;
