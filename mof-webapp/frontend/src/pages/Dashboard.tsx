@@ -66,7 +66,8 @@ export default function Dashboard() {
   //  - a user, toggle off: their personal accounts only.
   const summaryCalls: { userId: number; shared: 'exclude' | 'only' }[] = (() => {
     if (isDaixu) {
-      const calls = (users ?? []).map((u) => ({ userId: u.id, shared: 'exclude' as const }));
+      const calls: { userId: number; shared: 'exclude' | 'only' }[] =
+        (users ?? []).map((u) => ({ userId: u.id, shared: 'exclude' }));
       const anyUser = (users ?? [])[0];
       if (anyUser) calls.push({ userId: anyUser.id, shared: 'only' });
       return calls;
@@ -103,22 +104,35 @@ export default function Dashboard() {
   // One consolidated month summary per user, merged for the active tab. All
   // figures (salary, additional income, spending pie) come from this single
   // month window so they reconcile: total_income = salary + additional_income.
+  // Each person owns only their SHARE of the shared (Daixu) pool: 1/N of it,
+  // where N is the number of real people. This makes the tabs reconcile —
+  // Babu's net + Mamu's net (each with their half of shared) equals Daixu's net
+  // (which counts the whole pool once). The Daixu tab counts the pool in full.
+  const numUsers = Math.max(1, users?.length ?? 1);
+  const sharedFactor = isDaixu ? 1 : 1 / numUsers;
+
   const { data: monthSummary } = useQuery({
-    queryKey: ['month-summary', summaryCalls, activeMonth.year, activeMonth.month, displayCurrency],
+    queryKey: ['month-summary', summaryCalls, activeMonth.year, activeMonth.month, displayCurrency, sharedFactor],
     queryFn: async () => {
       const rows = await Promise.all(
         summaryCalls.map((c) =>
-          api.getMonthSummary(c.userId, activeMonth.year, activeMonth.month, displayCurrency, c.shared))
+          api.getMonthSummary(c.userId, activeMonth.year, activeMonth.month, displayCurrency, c.shared)
+            .then((r) => ({ r, shared: c.shared })))
       );
       const byCat: Record<string, CategorySummary> = {};
+      // Personal figures count in full; shared-pool figures are scaled by the
+      // per-person share so they can be halved on an individual's tab.
       let salary = 0, additional = 0, spending = 0;
-      rows.forEach((r) => {
-        salary += r.salary;
-        additional += r.additional_income;
-        spending += r.spending;
+      let sharedSpending = 0;
+      rows.forEach(({ r, shared }) => {
+        const f = shared === 'only' ? sharedFactor : 1;
+        salary += r.salary * f;
+        additional += r.additional_income * f;
+        spending += r.spending * f;
+        if (shared === 'only') sharedSpending += r.spending * sharedFactor;
         r.by_category.forEach((c) => {
           const m = byCat[c.category] ?? { category: c.category, total: 0, count: 0 };
-          m.total += c.total; m.count += c.count; byCat[c.category] = m;
+          m.total += c.total * f; m.count += c.count; byCat[c.category] = m;
         });
       });
       return {
@@ -126,6 +140,9 @@ export default function Dashboard() {
         additional_income: additional,
         total_income: salary + additional,
         spending,
+        // The shared slice folded into `spending` above — surfaced separately so
+        // an individual's tab can show "of which shared" next to Total Spending.
+        shared_spending: sharedSpending,
         by_category: Object.values(byCat),
       };
     },
@@ -142,12 +159,17 @@ export default function Dashboard() {
   }
 
   // Aggregate balances per currency (native) and as a converted grand total.
+  // On a personal tab a shared account counts only for this person's share
+  // (1/N), so the two people's balances sum to the whole shared balance — the
+  // same reconciliation applied to income/spending above.
   const balancesByCurrency: Record<string, number> = {};
   let totalInDisplay = 0;
   accounts.forEach((a) => {
     if (a.current_balance != null) {
-      balancesByCurrency[a.currency] = (balancesByCurrency[a.currency] ?? 0) + a.current_balance;
-      totalInDisplay += toDisplay(a.current_balance, a.currency);
+      const f = a.is_shared ? sharedFactor : 1;
+      const bal = a.current_balance * f;
+      balancesByCurrency[a.currency] = (balancesByCurrency[a.currency] ?? 0) + bal;
+      totalInDisplay += toDisplay(bal, a.currency);
     }
   });
   const hasMultipleCurrencies = Object.keys(balancesByCurrency).length > 1;
@@ -410,6 +432,12 @@ export default function Dashboard() {
               <p className="text-xl sov-stat-value text-red-600">
                 {formatCurrency(monthSummary?.spending ?? 0, displayCurrency)}
               </p>
+              {!isDaixu && includeShared && (monthSummary?.shared_spending ?? 0) > 0.005 && (
+                <p className="text-xs text-gray-400 mt-0.5">
+                  incl. {formatCurrency(monthSummary?.shared_spending ?? 0, displayCurrency)} shared
+                  ({numUsers === 2 ? '½' : `1/${numUsers}`} of Daixu)
+                </p>
+              )}
             </div>
             <div className="pt-2 border-t border-gray-100">
               <p className="text-sm sov-stat-label">Net</p>

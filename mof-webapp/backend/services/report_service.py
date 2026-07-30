@@ -87,19 +87,29 @@ async def gather_report_data(
     async def summ(ids: list[int], yr: int, mo: int) -> dict:
         return await _compute_month_summary(db, ids, yr, mo, currency)
 
+    # Each person owns only their SHARE of the shared (Daixu) pool: 1/N of it,
+    # where N is the number of people. Folding that share into each personal
+    # summary makes the report reconcile with the web app — the people's nets
+    # sum to the family net (which counts the whole pool once). The standalone
+    # "Daixu (Shared)" section below still shows the pool in full.
+    share_factor = 1.0 / max(1, len(users))
+    shared_cur = await summ(shared_ids, year, month)
+    shared_prev = await summ(shared_ids, py, pm)
+
     people = []
     for u in users:
         personal_ids = [a.id for a in all_accounts if a.user_id == u.id and not a.is_shared]
         people.append({
             "name": u.name,
-            "cur": await summ(personal_ids, year, month),
-            "prev": await summ(personal_ids, py, pm),
+            "cur": _blend(await summ(personal_ids, year, month), shared_cur, share_factor),
+            "prev": _blend(await summ(personal_ids, py, pm), shared_prev, share_factor),
+            "share_factor": share_factor,
         })
 
     shared = {
         "name": "Daixu (Shared)",
-        "cur": await summ(shared_ids, year, month),
-        "prev": await summ(shared_ids, py, pm),
+        "cur": shared_cur,
+        "prev": shared_prev,
     }
     family = {
         "name": "Daixu Family",
@@ -120,6 +130,30 @@ async def gather_report_data(
 
 def _cat_map(s: dict) -> dict[str, float]:
     return {c["category"]: c["total"] for c in s["by_category"]}
+
+
+def _blend(personal: dict, shared: dict, factor: float) -> dict:
+    """Personal summary plus `factor` of the shared pool (income, spending, and
+    each spending category). Used so a person carries their 1/N slice of the
+    shared household, keeping the report consistent with the web app's tabs."""
+    cats: dict[str, dict] = {}
+    for c in personal["by_category"]:
+        cats[c["category"]] = {"category": c["category"], "total": c["total"], "count": c["count"]}
+    for c in shared["by_category"]:
+        row = cats.setdefault(c["category"], {"category": c["category"], "total": 0.0, "count": 0})
+        row["total"] += c["total"] * factor
+        # counts aren't scaled (a fractional count is meaningless) — informational only.
+        row["count"] += c["count"]
+    salary = personal["salary"] + shared["salary"] * factor
+    additional = personal["additional_income"] + shared["additional_income"] * factor
+    return {
+        "salary": salary,
+        "additional_income": additional,
+        "total_income": salary + additional,
+        "spending": personal["spending"] + shared["spending"] * factor,
+        "by_category": list(cats.values()),
+        "currency": personal.get("currency", shared.get("currency")),
+    }
 
 
 def build_advice(entity: dict, currency: str) -> list[str]:
@@ -375,8 +409,19 @@ def _overview_table(data: dict) -> Table:
               f"Net\n{cur_lbl}", f"Net\n{prev_lbl}", "Net change"]
     rows = [header]
 
-    entities = data["people"] + [data["shared"], data["family"]]
-    for e in entities:
+    # People each already include their share of the pool, so people + family
+    # reconcile. The shared pool is shown as a memo row (its total is split
+    # across the people above, not added again) and the family total is the sum
+    # of the people.
+    n_people = len(data["people"])
+    share_lbl = "½" if n_people == 2 else f"1/{n_people}"
+    labelled = [
+        {**p, "name": f"{p['name']} (+{share_lbl} shared)"} for p in data["people"]
+    ] + [
+        {**data["shared"], "name": "Daixu Pool (memo)"},
+        data["family"],
+    ]
+    for e in labelled:
         cur, prev = e["cur"], e["prev"]
         rows.append([
             e["name"],
@@ -401,6 +446,11 @@ def _overview_table(data: dict) -> Table:
         ("TOPPADDING", (0, 0), (-1, -1), 5),
         ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
     ]
+    # Memo row (shared pool) sits just above the total — greyed + italic so it
+    # reads as informational, not another addend.
+    memo = len(rows) - 2
+    style.append(("TEXTCOLOR", (0, memo), (-1, memo), HexColor(GREY)))
+    style.append(("FONTNAME", (0, memo), (-1, memo), "Helvetica-Oblique"))
     # Shade the Family total row (last).
     style.append(("BACKGROUND", (0, len(rows) - 1), (-1, len(rows) - 1), HexColor("#f0e4c8")))
     style.append(("FONTNAME", (0, len(rows) - 1), (-1, len(rows) - 1), "Helvetica-Bold"))
@@ -546,10 +596,17 @@ def render_report_pdf(data: dict) -> bytes:
     _entity_section(story, data["shared"], data, styles,
                     "Shared Household (Daixu Pool)")
 
-    # --- Per-person sections ---
+    # --- Per-person sections (personal + this person's share of the pool) ---
+    n_people = len(data["people"])
+    share_note = (
+        "Includes this person's half of the shared Daixu pool."
+        if n_people == 2 else
+        f"Includes this person's 1/{n_people} share of the shared Daixu pool."
+    )
     for person in data["people"]:
         story.append(PageBreak())
-        _entity_section(story, person, data, styles, f"{person['name']} — Personal")
+        _entity_section(story, person, data, styles,
+                        f"{person['name']} — Personal + Shared Split", intro=share_note)
 
     doc.build(story)
     return buf.getvalue()
@@ -579,13 +636,17 @@ def _exec_summary_para(data: dict, styles: dict) -> Paragraph:
     return Paragraph(txt, styles["body"])
 
 
-def _entity_section(story: list, entity: dict, data: dict, styles: dict, title: str):
+def _entity_section(story: list, entity: dict, data: dict, styles: dict, title: str,
+                    intro: str | None = None):
     """One full section: heading, stat cards, charts, category table, advice."""
     ccy = data["currency"]
     cur_lbl = month_label(data["year"], data["month"])
     prev_lbl = month_label(data["prev_year"], data["prev_month"])
 
     story.append(Paragraph(title, styles["h2"]))
+    if intro:
+        story.append(Paragraph(intro, styles["caption"]))
+        story.append(Spacer(1, 4))
     story.append(_stat_cards(entity, ccy, styles))
     story.append(Spacer(1, 10))
 

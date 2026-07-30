@@ -19,7 +19,7 @@ type Mode = 'walk' | 'dance' | 'panic' | 'fall';
 // the other and never overlap. 戴许 (the hopper) leaps clear over 小企鹅 when it
 // closes in; a hard separation guard is the fallback for everyone else (the
 // penguin, reduced-motion, near-wall cases).
-interface Footprint { x: number; px: number; w: number; h: number; hopping: boolean }
+interface Footprint { x: number; px: number; y: number; w: number; h: number; hopping: boolean }
 const stage: Partial<Record<CharacterId, Footprint>> = {};
 
 interface Props {
@@ -170,8 +170,15 @@ export default function Companion({ who, name, bubble, startFrac, speed, aspect 
       // Behaviour per mode.
       if (S.mode === 'walk') {
         const other = stage[who === 'penguin' ? 'kangaroo' : 'penguin'];
-        // While 戴许 is airborne, 小企鹅 freezes so it stays a still target and
-        // never wanders into the landing spot (which used to defeat the jump).
+        // Do our vertical boxes overlap? If the other companion is lifted clear
+        // of our height — dragged up, mid-fall, or at the peak of a hop — the
+        // boxes don't meet and we ignore it entirely, so each passes freely over
+        // the other. (Both normally sit bottom-aligned on the same ground.)
+        const vOverlap = !!other
+          && other.y + other.h > S.y + S.dh * 0.15   // other's feet below our chin
+          && other.y < S.y + S.dh;                    // other's head above our feet
+        // While 戴许 is airborne over us, 小企鹅 freezes so it stays a still
+        // target and never wanders into the landing spot (defeating the jump).
         const freeze = !!other && other.hopping && who === 'penguin';
 
         if (!S.reduced && !freeze) {
@@ -187,9 +194,11 @@ export default function Companion({ who, name, bubble, startFrac, speed, aspect 
         S.y = S.ground;
 
         // ── Never overlap the other companion ──────────────────────────────
-        // Skip entirely while the other is mid-hop: don't shove an airborne
-        // companion, and let it complete its arc over a stationary target.
-        if (other && !S.reduced && !other.hopping) {
+        // Only applies when our boxes actually overlap vertically. If either is
+        // lifted clear (dragged, falling, or mid-hop above the other's head) we
+        // don't push or get pushed — free passage. This fixes dragging either
+        // character over the other, and stops a mid-air 戴许 shoving 小企鹅.
+        if (other && !S.reduced && !other.hopping && vOverlap) {
           const myC = S.x + S.dw / 2;
           const otherC = other.x + other.w / 2;
           const gap = Math.abs(myC - otherC);
@@ -302,8 +311,9 @@ export default function Companion({ who, name, bubble, startFrac, speed, aspect 
       }
 
       // Publish footprint so the other companion can avoid / hop over us.
-      // `px` is last frame's x, giving the other its horizontal velocity.
-      stage[who] = { x: S.x, px: stage[who]?.x ?? S.x, w: S.dw, h: S.dh, hopping: S.mode === 'hop' };
+      // `px` is last frame's x, giving the other its horizontal velocity; `y`
+      // lets the other tell whether we're lifted clear of its height.
+      stage[who] = { x: S.x, px: stage[who]?.x ?? S.x, y: S.y, w: S.dw, h: S.dh, hopping: S.mode === 'hop' };
 
       // Commit transform (position + facing). Art faces left; flip when dir=1.
       const el = rootRef.current;
