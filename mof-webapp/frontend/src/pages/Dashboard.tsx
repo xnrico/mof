@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 import { Wallet, TrendingUp, FileDown } from 'lucide-react';
 import { api, formatCurrency, User, Account, CategorySummary } from '../services/api';
 import Companion from '../components/Companion';
+import { setFinanceContext } from '../components/companionDialogue';
 
 // Apple system palette (iOS/macOS system colours) — distinct, legible hues that
 // read as one family in both light and dark surroundings.
@@ -156,6 +157,25 @@ export default function Dashboard() {
     .sort((a, b) => b.total - a.total)
     .map((s) => ({ name: s.category, value: Math.round(s.total * 100) / 100 }));
   const spendingTotal = chartData.reduce((sum, d) => sum + d.value, 0);
+
+  // Feed the currently-displayed month into the companions so 小企鹅 and 戴许
+  // can talk about Babu & Mamu's REAL spending (top categories, savings rate),
+  // in the same spirit as the monthly PDF report.
+  useEffect(() => {
+    const income = monthSummary?.total_income ?? 0;
+    const spending = monthSummary?.spending ?? 0;
+    if (!monthSummary || (income < 0.005 && spending < 0.005)) {
+      setFinanceContext(null);
+      return;
+    }
+    setFinanceContext({
+      currency: displayCurrency,
+      spending,
+      income,
+      savingsRate: income > 0.005 ? ((income - spending) / income) * 100 : null,
+      cats: chartData.map((d) => ({ name: d.name, amount: d.value })),
+    });
+  }, [monthSummary, displayCurrency, chartData]);
 
   // Download the comprehensive family PDF report for the active month. The
   // report always covers the whole Daixu family regardless of the active tab.

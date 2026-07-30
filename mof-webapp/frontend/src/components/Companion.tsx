@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
-  CharacterId, idleLine, hoverLine, panicLine, ouchLine, scoldLine, retortLine,
+  CharacterId, idleLine, hoverLine, panicLine, ouchLine, scoldLine, retortLine, hopLine,
   talkBus, speakFloor, bubbleMs,
 } from './companionDialogue';
 
@@ -13,6 +13,14 @@ const ROW = { walk: 0, panic: 1, dance: 2, fall: 3 } as const;
 const FRAME_MS = { walk: 110, panic: 70, dance: 95, fall: 85 };
 
 type Mode = 'walk' | 'dance' | 'panic' | 'fall';
+
+// ── Shared stage ──────────────────────────────────────────────────────────────
+// Both companions publish their live footprint here every frame so each can see
+// the other and never overlap. 戴许 (the hopper) leaps clear over 小企鹅 when it
+// closes in; a hard separation guard is the fallback for everyone else (the
+// penguin, reduced-motion, near-wall cases).
+interface Footprint { x: number; w: number; h: number; hopping: boolean }
+const stage: Partial<Record<CharacterId, Footprint>> = {};
 
 interface Props {
   who: CharacterId;
@@ -37,7 +45,7 @@ export default function Companion({ who, name, bubble, startFrac, speed, aspect 
   // All simulation state lives in a ref so the rAF loop never triggers React
   // re-renders (only the speech bubble + name label use state).
   const S = useRef({
-    mode: 'walk' as Mode,
+    mode: 'walk' as Mode | 'hop',
     x: 0, y: 0,             // top-left position, px (viewport coords)
     dir: 1 as 1 | -1,       // 1 = moving/ facing right, -1 = left
     vx: 0, vy: 0,           // velocity px/s (used by the fall physics)
@@ -52,6 +60,8 @@ export default function Companion({ who, name, bubble, startFrac, speed, aspect 
     samples: [] as { x: number; y: number; t: number }[],
     // idle chatter timer
     nextTalk: 0,
+    // hop-over bookkeeping (kangaroo leaping across the penguin)
+    hopFromX: 0, hopToX: 0, hopStart: 0, hopDur: 0, hopArc: 0, hopCooldown: 0,
     // responding to the other character (bounded, no re-emit)
     reduced: false,
     alive: true,
@@ -93,6 +103,9 @@ export default function Companion({ who, name, bubble, startFrac, speed, aspect 
       // Wait for the other's bubble to clear, then reply holding the floor.
       if (who === 'penguin' && e === 'mock') {
         setTimeout(() => { if (S.mode === 'walk') speakNow(scoldLine().text); }, 2600);
+      } else if (who === 'penguin' && e === 'hop') {
+        // 小企鹅 grumbles after being leapt over.
+        setTimeout(() => { if (S.mode === 'walk') speakNow(scoldLine().text); }, 1400);
       } else if (who === 'kangaroo' && e === 'scold') {
         setTimeout(() => { if (S.mode === 'walk') speakNow(retortLine().text); }, 2600);
       }
@@ -115,13 +128,15 @@ export default function Companion({ who, name, bubble, startFrac, speed, aspect 
       speak(text);
     }
 
-    function setMode(m: Mode) {
+    function setMode(m: Mode | 'hop') {
       if (S.mode === m) return;
       S.mode = m;
       S.frame = 0; S.frameT = 0;
-      setShowName(m === 'walk');
+      setShowName(m === 'walk' || m === 'hop');
       const el = spriteRef.current;
-      if (el) el.style.backgroundPositionY = `${-ROW[m] * S.dh}px`;
+      // A hop reuses the walk animation row (legs pumping) while the physics
+      // arc carries the body up and over.
+      if (el) el.style.backgroundPositionY = `${-ROW[m === 'hop' ? 'walk' : m] * S.dh}px`;
     }
 
     // ── requestAnimationFrame loop ────────────────────────────────────────────
@@ -135,7 +150,7 @@ export default function Companion({ who, name, bubble, startFrac, speed, aspect 
       const maxX = vw - S.dw;
 
       // Advance sprite frame.
-      const fms = FRAME_MS[S.mode];
+      const fms = FRAME_MS[S.mode === 'hop' ? 'walk' : S.mode];
       S.frameT += dt * 1000;
       if (S.frameT >= fms) {
         S.frameT -= fms;
@@ -159,6 +174,49 @@ export default function Companion({ who, name, bubble, startFrac, speed, aspect 
           else if (S.x >= hiBound) { S.x = hiBound; S.dir = -1; }
         }
         S.y = S.ground;
+
+        // ── Never overlap the other companion ──────────────────────────────
+        const other = stage[who === 'penguin' ? 'kangaroo' : 'penguin'];
+        if (other && !S.reduced) {
+          const myC = S.x + S.dw / 2;
+          const otherC = other.x + other.w / 2;
+          const gap = Math.abs(myC - otherC);
+          // Minimum breathing room between body centres (plus a little air).
+          const minGap = S.dw / 2 + other.w / 2 + 14;
+
+          if (who === 'kangaroo' && !other.hopping && now >= S.hopCooldown
+              && gap < minGap + 34 && (myC < otherC ? S.dir === 1 : S.dir === -1)) {
+            // 戴许 hops clean over 小企鹅, landing on the far side with clearance.
+            const dir: 1 | -1 = myC < otherC ? 1 : -1;
+            const landC = otherC + dir * (minGap + 24);
+            const landX = landC - S.dw / 2;
+            if (landX >= 0 && landX <= maxX) {
+              S.hopFromX = S.x;
+              S.hopToX = landX;
+              S.hopStart = now;
+              S.hopDur = 560;
+              S.hopArc = Math.max(46, S.dh * 0.7);
+              S.dir = dir;
+              setMode('hop');
+              // A quick hop quip, only if it won't stomp on the other's bubble.
+              if (!speakFloor.busy(who, now)) {
+                speakNow(hopLine().text);
+                talkBus.emit('hop');
+              }
+            } else {
+              // No room to clear it — just turn away instead.
+              S.dir = (dir === 1 ? -1 : 1) as 1 | -1;
+            }
+          } else if (gap < minGap) {
+            // Fallback guard (penguin, cooldown, reduced-motion): push apart and
+            // turn away so bodies — and their name labels — never overlap.
+            const push = (minGap - gap) / 2 + 0.5;
+            S.x += (myC < otherC ? -push : push);
+            S.x = Math.max(0, Math.min(S.x, maxX));
+            S.dir = (myC < otherC ? -1 : 1) as 1 | -1;
+          }
+        }
+
         // Idle chatter — but take turns: only speak if the other companion
         // isn't currently holding the speaking floor, so bubbles never overlap.
         if (now >= S.nextTalk) {
@@ -181,6 +239,17 @@ export default function Companion({ who, name, bubble, startFrac, speed, aspect 
         // Dancing "left" in place; nudge slightly left for a shuffle feel.
         S.dir = -1;
         S.y = S.ground;
+      } else if (S.mode === 'hop') {
+        // Parabolic leap from hopFromX → hopToX, arcing hopArc px above ground.
+        const p = Math.min(1, (now - S.hopStart) / S.hopDur);
+        S.x = S.hopFromX + (S.hopToX - S.hopFromX) * p;
+        S.y = S.ground - S.hopArc * 4 * p * (1 - p); // parabola peaking at p=0.5
+        if (p >= 1) {
+          S.x = S.hopToX;
+          S.y = S.ground;
+          S.hopCooldown = now + 2600; // don't immediately hop back
+          setMode('walk');
+        }
       } else if (S.mode === 'panic') {
         // Position is driven by pointer in the move handler; nothing here.
       } else if (S.mode === 'fall') {
@@ -209,6 +278,9 @@ export default function Companion({ who, name, bubble, startFrac, speed, aspect 
           S.nextTalk = now + 4000 + Math.random() * 5000;
         }
       }
+
+      // Publish footprint so the other companion can avoid / hop over us.
+      stage[who] = { x: S.x, w: S.dw, h: S.dh, hopping: S.mode === 'hop' };
 
       // Commit transform (position + facing). Art faces left; flip when dir=1.
       const el = rootRef.current;
@@ -308,6 +380,7 @@ export default function Companion({ who, name, bubble, startFrac, speed, aspect 
 
     return () => {
       S.alive = false;
+      delete stage[who];
       cancelAnimationFrame(raf);
       window.removeEventListener('resize', measure);
       window.clearInterval(danceTalk);
