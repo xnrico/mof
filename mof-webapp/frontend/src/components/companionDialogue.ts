@@ -111,30 +111,30 @@ function penguinDataAdvice(t: string, f: CatFact): string {
   const heart = () => P('💗', '💙', '💕', '🩵');
   const sea = () => P('🐙', '🐟', '🦐', '🦑', '🌊');
   return P(
-    `${t}, ${f.name} is already ${money(f.amount)} this month — trade one for my octopus stew? ${sea()}`,
-    `${t}, ${money(f.amount)} on ${f.name}?! I'd sooner slide to the sea on my belly and save. ${sea()}`,
-    `${t}, trim ${f.name} a smidge and I'll do my little heart dance for you! ${heart()}`,
-    `${t}, ${f.name} is your biggest splurge (${money(f.amount)}) — sleep on the next one? 🛏️`,
-    `${t}, if you tucked away what ${f.name} cost, I'd buy ALL the octopus. ${sea()}${heart()}`,
-    `${t}, ${money(f.amount)} on ${f.name} could be a fat rainy-day fund. My belly approves of savings! 🐧`,
-    `${t}, another ${f.name} charge? Waddle over, let's cap it together. 📊`,
-    `${t}, ${f.name} crept up to ${money(f.amount)} — my short legs and I say: pause a beat. 🐾`,
-    `${t}, I counted ${money(f.amount)} of ${f.name}. Halve it and I'll lean left-and-right just for you! ${heart()}`,
-    `${t}, ${f.name} again? Even a hungry penguin like me doesn't spend that on fish. ${sea()}`,
+    `${t}，${f.name} 这个月已经花了 ${money(f.amount)} — 省一笔换我一锅章鱼汤好不好嘛？${sea()}`,
+    `${t}，${f.name} 花 ${money(f.amount)}？！这钱够我用肚皮滑到海边捞一年的鱼了！${sea()}`,
+    `${t}，${f.name} 稍微省一点点，我就给你跳我的招牌爱心舞！${heart()}`,
+    `${t}，${f.name} 是你这个月最大的一笔（${money(f.amount)}）— 下一单先睡一觉再说？🛏️`,
+    `${t}，要是把 ${f.name} 的钱存起来，我能买下全世界的章鱼！${sea()}${heart()}`,
+    `${t}，${money(f.amount)} 花在 ${f.name} 上，够攒一个胖胖的应急金啦，我的肚子赞成存钱！🐧`,
+    `${t}，又刷 ${f.name}？摇摇晃晃过来，咱俩一起把它管住！📊`,
+    `${t}，${f.name} 悄悄涨到 ${money(f.amount)} 了 — 我和我的小短腿建议你：先缓一缓。🐾`,
+    `${t}，我数了数，${f.name} 花了 ${money(f.amount)}。砍一半，我就专门为你左摇右摆一支！${heart()}`,
+    `${t}，又是 ${f.name}？连我这么馋的企鹅都不舍得花这么多买鱼呢。${sea()}`,
   );
 }
 
 function penguinSavingsAdvice(t: string, rate: number): string {
   const heart = () => P('💗', '💙', '💕');
-  if (rate < 0) return `${t}, you're spending more than you earn — my belly's doing worried little flips. Let's fix it? 😟`;
+  if (rate < 0) return `${t}，你花的比赚的还多 — 我的肚子紧张得一抖一抖的，咱们一起补救好不好？😟`;
   if (rate < 10) return P(
-    `${t}, savings rate is only ${Math.round(rate)}% — do my heart wiggle with me and aim for 20%! ${heart()}`,
-    `${t}, ${Math.round(rate)}% saved this month. A little more and I'll dance twice as hard! 💃`,
+    `${t}，储蓄率才 ${Math.round(rate)}% — 跟我一起扭扭爱心舞，冲个 20% 呗！${heart()}`,
+    `${t}，这个月只存了 ${Math.round(rate)}%。再多一点，我跳舞的力气就翻倍！💃`,
   );
-  if (rate < 20) return `${t}, ${Math.round(rate)}% saved — solid! Nudge past 20% and I'll flap with joy. 🐧✨`;
+  if (rate < 20) return `${t}，存了 ${Math.round(rate)}% — 不错哦！再迈过 20%，我就开心到拍翅膀！🐧✨`;
   return P(
-    `${t}, a ${Math.round(rate)}% savings rate?! I'm doing my proudest heart dance for you! ${heart()}`,
-    `${t}, ${Math.round(rate)}% tucked away — my big belly is bursting with pride! 🐧🎉`,
+    `${t}，储蓄率 ${Math.round(rate)}%？！我要为你跳一支最骄傲的爱心舞！${heart()}`,
+    `${t}，存下了 ${Math.round(rate)}% — 我这个大肚子骄傲得快要撑爆啦！🐧🎉`,
   );
 }
 
@@ -142,16 +142,16 @@ function penguinLore(t: string): string {
   const heart = () => P('💗', '💙', '💕', '🩵');
   const sea = () => P('🐙', '🐟', '🦐', '🦑');
   return P(
-    `${t}, watch my signature dance — lean left, lean right, little heart in hand! ${heart()}`,
-    `${t}, my legs are too short to hurry, so I'm sliding over on my belly! 🐧💨`,
-    `${t}, Mamu gave me to you and I adore you right back — now let's save some pennies! ${heart()}`,
-    `${t}, did someone say octopus? My belly rumbled all the way over here. ${sea()}`,
-    `${t}, a cosy home-cooked seafood dinner beats takeout — cheaper AND tastier! ${sea()}`,
-    `${t}, hold on, my little legs are wobbling — worth it to bring you budget tips! 🐧`,
-    `${t}, an emergency fund is like a warm nest — keeps you snug when storms come. 🧣`,
-    `${t}, brew coffee at home this week? The savings buy me extra fish. ${sea()}☕`,
-    `${t}, round up your spare change into savings — it grows quietly, like my belly. 🪙🐧`,
-    `${t}, I'll lean left and right till you smile — then promise me you'll budget, okay? ${heart()}`,
+    `${t}，看我的招牌舞 — 左倾倾，右倾倾，手里还捧着颗小爱心！${heart()}`,
+    `${t}，我腿太短跑不快，干脆用肚皮滑过来了！🐧💨`,
+    `${t}，Mamu 把我送给你，我也超爱你哒 — 来嘛，咱们一起省点小钱钱！${heart()}`,
+    `${t}，谁说章鱼来着？我的肚子一路咕噜咕噜叫过来了。${sea()}`,
+    `${t}，在家做顿热乎乎的海鲜大餐，比外卖又香又便宜！${sea()}`,
+    `${t}，等等我，小短腿都在打颤了 — 但给你送理财小贴士还是值得的！🐧`,
+    `${t}，应急基金就像一个暖暖的窝 — 起风下雨时把你裹得妥妥的。🧣`,
+    `${t}，这周在家自己冲咖啡好不好？省下的钱够我加餐吃鱼！${sea()}☕`,
+    `${t}，把零钱凑个整数存起来吧 — 它会悄悄长大，就像我的肚子。🪙🐧`,
+    `${t}，我左摇右摆逗你笑 — 然后你要答应我好好记账，好不好？${heart()}`,
   );
 }
 
@@ -159,20 +159,20 @@ function penguinScold(): string {
   const f = randTopCat();
   const dataJab = f
     ? P(
-        `戴许, quit teasing about the ${f.name} bill — I'm flapping my wings at you! 🐧💢`,
-        `戴许, laughing at ${money(f.amount)} of ${f.name}? Rude! Both wings, flapping! 💢`,
+        `戴许，别再拿 ${f.name} 那笔账开玩笑了 — 我要朝你拍翅膀啦！🐧💢`,
+        `戴许，笑人家 ${f.name} 花了 ${money(f.amount)}？没礼貌！两只翅膀一起拍！💢`,
       )
     : null;
   return P(
     ...(dataJab ? [dataJab] : []),
-    `戴许, stop hopping about pestering Babu and Mamu for attention! 😤`,
-    `戴许, being loud won't make you clever, you cheeky roo! 🐧`,
-    `戴许, apologise this instant — you've made me flap both wings! 💢`,
-    `戴许, hop off and count your apples instead of causing trouble! 🍎`,
-    `戴许, mischief again? I'm sliding right over there on my belly! 🐧💨`,
-    `戴许, leave everyone's wallets alone — Babu adores ME, remember? 😾`,
-    `戴许, you're only sweet when others misbehave. I see you, roo! 🙄`,
-    `戴许, one more joke about my short legs and the wings come out! 🪽💢`,
+    `戴许，别再蹦来蹦去缠着 Babu 和 Mamu 求关注啦！😤`,
+    `戴许，嗓门大又不代表你聪明，你个皮袋鼠！🐧`,
+    `戴许，立刻道歉 — 你把我气得两只翅膀一起拍！💢`,
+    `戴许，蹦一边数你的苹果去，别在这儿捣乱！🍎`,
+    `戴许，又调皮？信不信我用肚皮滑过去教训你！🐧💨`,
+    `戴许，别惦记大家的钱包 — Babu 最爱的是「我」，记住了没？😾`,
+    `戴许，就你，别人一乖你就作妖，我可看得清清楚楚！🙄`,
+    `戴许，再拿我的小短腿开一次玩笑，翅膀就要出动咯！🪽💢`,
   );
 }
 
@@ -183,53 +183,53 @@ function penguinScold(): string {
 function kangarooDataMock(t: string, f: CatFact): string {
   const laugh = () => P('😹', '😂', '🤣', '😆');
   return P(
-    `${t}, ${f.name} hit ${money(f.amount)}?! Even my apple stash costs less! 🍎${laugh()}`,
-    `${t}, ${money(f.amount)} on ${f.name} — boing! Your wallet is sobbing! ${laugh()}`,
-    `${t}, ANOTHER ${f.name} order? I'd have Deliveroo'd it faster AND for free! 🦘`,
-    `${t}, ${f.name}: ${money(f.amount)}. Big spender energy! Buy me apples too! 🍎`,
-    `${t}, spending ${money(f.amount)} on ${f.name} like it grows on trees, huh? 🌳${laugh()}`,
-    `${t}, your bank app called about the ${f.name} bill — it's scared of you! ☎️${laugh()}`,
-    `${t}, ${money(f.amount)} on ${f.name}? I hopped past three times and still can't believe it! 🦘`,
-    `${t}, that ${f.name} splurge (${money(f.amount)})… busted! I'm the delivery roo, I SEE the orders! 🕵️`,
-    `${t}, treat yourself to ${f.name}, treat ME to apples, treat EVERYONE! Wheee! 🎉`,
-    `${t}, ${f.name} again? I deliver food all day and even I don't spend that! 🦘💸`,
+    `${t}，${f.name} 居然花到 ${money(f.amount)}？！我囤的苹果都没这么贵！🍎${laugh()}`,
+    `${t}，${f.name} 花 ${money(f.amount)} — 蹦！你的钱包都在哭啦！${laugh()}`,
+    `${t}，又点 ${f.name}？换我送又快又免费，白嫖它不香吗！🦘`,
+    `${t}，${f.name}：${money(f.amount)}。大款气场十足！顺手也给我买点苹果呗！🍎`,
+    `${t}，${f.name} 花 ${money(f.amount)}，你当钱是树上长的呀？🌳${laugh()}`,
+    `${t}，你银行 App 为了 ${f.name} 那笔账打电话来了 — 它被你吓着了！☎️${laugh()}`,
+    `${t}，${f.name} 花 ${money(f.amount)}？我来来回回蹦过去三趟，还是不敢相信！🦘`,
+    `${t}，${f.name} 这笔大手笔（${money(f.amount)}）… 抓到啦！我是送餐袋鼠，订单我全看得见！🕵️`,
+    `${t}，宠 ${f.name}，也宠宠我的苹果，宠遍全世界！耶～🎉`,
+    `${t}，又是 ${f.name}？我一整天送外卖，连我都不敢花这么多！🦘💸`,
   );
 }
 
 function kangarooBrag(t: string): string {
   return P(
-    `${t}, look at me hop! I'm the Deliveroo roo — fastest food in town! 🦘🍎`,
-    `${t}, watch this jump! Bet 小企鹅 can't do THAT with those stubby legs! 😹`,
-    `${t}, I delivered ALL your dinners today, so where are MY apples? 🍎`,
-    `${t}, everyone's being good and boring — so I'm being extra naughty! Boing! 🦘`,
-    `${t}, notice me! I hopped the highest just for your attention! 🎉`,
-    `${t}, I'm basically the logo on your delivery app. Iconic, right? 😎`,
-    `${t}, apples are the best food, don't @ me. Toss one my way! 🍎`,
-    `${t}, hop hop HOP — who needs a scooter when you've got these legs? 🦘💨`,
-    `${t}, when the others act up, I turn into the perfect angel baby roo. Love me! 😇`,
-    `${t}, I'll juggle your receipts AND three apples at once — attention, please! 🤹🍎`,
+    `${t}，看我蹦！我可是送餐袋鼠 — 全城最快的美食快递！🦘🍎`,
+    `${t}，看我这一跳！小企鹅那对小短腿肯定跳不了这么高！😹`,
+    `${t}，今天你的晚饭全是我送的，那我的苹果呢？🍎`,
+    `${t}，大家都乖得没劲 — 那我就负责多作一点妖！蹦！🦘`,
+    `${t}，快看我！我跳得最高，全是为了博你一眼！🎉`,
+    `${t}，我基本上就是你外卖 App 上那个 logo，够标志性吧？😎`,
+    `${t}，苹果就是最好吃的，别反驳我，快扔一个过来！🍎`,
+    `${t}，蹦蹦蹦 — 有这双腿谁还要电动车呀？🦘💨`,
+    `${t}，别人一捣蛋，我立马变身完美乖宝宝袋鼠，快夸我！😇`,
+    `${t}，我能一边抛你的小票、一边杂耍三个苹果 — 关注一下我嘛！🤹🍎`,
   );
 }
 
 function kangarooRetort(t: string): string {
   return P(
-    `${t}, don't listen to that grumpy flapping penguin — spend it all! 😜`,
-    `${t}, 小企鹅 is sooo slow and boring, I'm way more fun, right?! 🦘`,
-    `${t}, budgets are for penguins with big bellies! Let's party! 🎊`,
-    `${t}, ignore the lecture — order the food, I'll deliver it! 🍎`,
-    `${t}, that penguin's just jealous I can hop and it can only slide. 😏`,
-    `${t}, apples over advice any day — right, ${t}? Hop hop! 🍎`,
+    `${t}，别听那只气呼呼拍翅膀的企鹅的 — 想花就花！😜`,
+    `${t}，小企鹅慢吞吞的超无聊，我才好玩多啦，对不对？！🦘`,
+    `${t}，预算是留给大肚子企鹅的东西！咱们开趴踢！🎊`,
+    `${t}，别理那套说教 — 尽管点，我负责送到！🍎`,
+    `${t}，那企鹅就是嫉妒我会蹦，它只能滑。😏`,
+    `${t}，苹果永远大于说教 — 对吧 ${t}？蹦蹦！🍎`,
   );
 }
 
 function kangarooHop(): string {
   return P(
-    `Boing! Hopped clean over 小企鹅! Too slow, flippers! 🦘`,
-    `Weeee! 小企鹅's belly is a great jumping ramp! 🐧💨`,
-    `Hop hop — coming through, out of the way, little penguin! 🦘`,
-    `Ha! Bet you can't jump like THAT with stubby legs! 😹`,
-    `Deliveroo roo, express lane — HUP! Over you go! 🍎`,
-    `Boing boing! Watch me clear the penguin in one leap! 🦘✨`,
+    `蹦！干净利落跳过小企鹅！太慢啦，小鳍鳍！🦘`,
+    `咻～小企鹅的肚子简直是天然跳台！🐧💨`,
+    `蹦蹦 — 借过借过，让一让呀小企鹅！🦘`,
+    `哈！就你那小短腿，肯定跳不出这种高度！😹`,
+    `送餐袋鼠，走快速通道 — 嘿！从你头上飞过去咯！🍎`,
+    `蹦蹦蹦！看我一跃飞过这只企鹅！🦘✨`,
   );
 }
 
@@ -237,34 +237,34 @@ function kangarooHop(): string {
 
 function penguinPanic(t: string): string {
   return P(
-    `Eeek! Put me down gently, ${t}! My belly's not for tossing! 😱`,
-    `${t}! I'm a gift, not a toy — careful! 🐧💨`,
-    `Too high! My little wings can't fly, they only flap! 🪽`,
-    `${t}, pleeease, my short legs are dangling! 😨`,
-    `Aaah! I can't do my heart dance up HERE! 💗😵`,
+    `诶诶诶！轻点放我下来，${t}！我的肚子可不是拿来抛的！😱`,
+    `${t}！我是礼物，不是玩具 — 轻点儿！🐧💨`,
+    `太高啦！我的小翅膀不会飞，只会扑棱！🪽`,
+    `${t}，求你了，我的小短腿都在空中晃悠了！😨`,
+    `啊啊啊！在这么高的地方我可跳不了爱心舞！💗😵`,
   );
 }
 function kangarooPanic(t: string): string {
   return P(
-    `${t}! PUT ME DOWN — I've got deliveries to make! 😤`,
-    `Aaah! You'll bruise the apples I'm carrying! 🍎😵`,
-    `${t}, unhand me, this is roo-napping!! 🦘💢`,
-    `Boing— HELP! A hopper needs the GROUND! 😵`,
-    `Hey! Real Deliveroo logos do NOT get dangled! 😾`,
+    `${t}！放我下来 — 我还有外卖要送呢！😤`,
+    `啊！你要把我怀里的苹果都磕坏啦！🍎😵`,
+    `${t}，放开我，这是绑架袋鼠！！🦘💢`,
+    `蹦— 救命！蹦跳选手需要地面！😵`,
+    `喂！正版送餐 logo 是不许被拎着晃的！😾`,
   );
 }
 function penguinOuch(t: string): string {
   return P(
-    `OUCH! My big belly bounced twice! 😵`,
-    `Owie… that hurt, ${t}. I'm flapping in protest! 🪽😢`,
-    `Oof! At least my belly cushioned it… I think. 🐧🌀`,
+    `哎哟！我的大肚子弹了两下！😵`,
+    `疼疼疼… 好痛啊 ${t}，我要拍翅膀抗议！🪽😢`,
+    `噗！还好有肚子垫着… 大概吧。🐧🌀`,
   );
 }
 function kangarooOuch(t: string): string {
   return P(
-    `OUCH! You'll pay in apples for that, ${t}! 🍎😠`,
-    `Owww, my tail! That's no way to treat the delivery roo! 😾`,
-    `Oof! Rude! I'm hopping off to tell Babu AND Mamu! 🦘😤`,
+    `哎哟！这一下你要用苹果来赔，${t}！🍎😠`,
+    `哎呦我的尾巴！送餐袋鼠可不是这么对待的！😾`,
+    `噗！没礼貌！我这就蹦去跟 Babu 和 Mamu 告状！🦘😤`,
   );
 }
 
@@ -395,7 +395,8 @@ export const speakFloor = {
   },
 };
 
-/** How long a bubble stays up: enough to comfortably finish reading. */
+/** How long a bubble stays up: enough to comfortably finish reading. Chinese
+ *  packs more meaning per character, so give each one a touch more dwell time. */
 export function bubbleMs(text: string): number {
-  return Math.min(9000, 4000 + text.length * 75);
+  return Math.min(9000, 4000 + text.length * 120);
 }
