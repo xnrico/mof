@@ -5,6 +5,8 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recha
 import { Wallet, TrendingUp, FileDown } from 'lucide-react';
 import { api, formatCurrency, User, Account, CategorySummary } from '../services/api';
 import Companion from '../components/Companion';
+import AltitudeMeter from '../components/AltitudeMeter';
+import FlightRecords from '../components/FlightRecords';
 import { setFinanceContext } from '../components/companionDialogue';
 
 // Apple system palette (iOS/macOS system colours) — distinct, legible hues that
@@ -449,7 +451,12 @@ export default function Dashboard() {
         </div>
       </Card>
 
-      {/* Interactive companions that roam the bottom of the page. */}
+      {/* Today's companion flight records (altitude). */}
+      <FlightRecords />
+
+      {/* Interactive companions that roam the bottom of the page. Flick one up
+          and the altitude meter tracks its flight; 戴许 is ~2kg so it launches
+          far higher than the ~10kg 小企鹅 from the same throw. */}
       <Companion
         who="penguin"
         name="小企鹅"
@@ -457,6 +464,7 @@ export default function Dashboard() {
         startFrac={0.25}
         speed={42}
         aspect={178 / 180}
+        mass={10}
       />
       <Companion
         who="kangaroo"
@@ -465,7 +473,9 @@ export default function Dashboard() {
         startFrac={0.7}
         speed={54}
         aspect={163 / 180}
+        mass={2}
       />
+      <AltitudeMeter />
     </div>
   );
 }

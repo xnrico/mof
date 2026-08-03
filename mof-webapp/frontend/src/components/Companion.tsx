@@ -2,8 +2,16 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
   CharacterId, idleLine, hoverLine, panicLine, ouchLine, scoldLine, retortLine, hopLine,
-  talkBus, speakFloor, bubbleMs, registerBubbleClearer,
+  recordLine, talkBus, speakFloor, bubbleMs, registerBubbleClearer,
 } from './companionDialogue';
+import {
+  REF_MASS, pxToMeters, pushLive, reportAltitude, recordFor, celebrate,
+} from './altitudeRecords';
+
+// Altitude (px above ground) below which we treat the companion as "on the
+// ground" and hide the meter. Also the minimum peak that can count as a record.
+const AIR_MIN_PX = 12;
+const MIN_RECORD_M = 1.5;
 
 // Sprite sheet geometry (see scripts that generated public/sprites/*.png).
 const COLS = 14;
@@ -34,9 +42,11 @@ interface Props {
   speed: number;
   /** Sprite cell aspect ratio (frame width / height); differs per character. */
   aspect: number;
+  /** Body mass in kg — a flick's fixed impulse gives lighter bodies more speed. */
+  mass: number;
 }
 
-export default function Companion({ who, name, bubble, startFrac, speed, aspect }: Props) {
+export default function Companion({ who, name, bubble, startFrac, speed, aspect, mass }: Props) {
   const rootRef = useRef<HTMLDivElement>(null);
   const spriteRef = useRef<HTMLDivElement>(null);
   const [say, setSay] = useState<string | null>(null);
@@ -55,6 +65,8 @@ export default function Companion({ who, name, bubble, startFrac, speed, aspect 
     ground: 0,              // resting top position
     // fall bookkeeping
     fallStart: 0, landed: false, landedT: 0,
+    // flight altitude tracking (px above ground this launch, + prior record)
+    peakPx: 0, recordAtLaunch: 0, celebrated: false,
     // drag bookkeeping
     dragging: false, grabDX: 0, grabDY: 0,
     samples: [] as { x: number; y: number; t: number }[],
@@ -291,6 +303,20 @@ export default function Companion({ who, name, bubble, startFrac, speed, aspect 
         S.vx *= 0.92; // horizontal friction
         if (S.x < 0) { S.x = 0; S.vx = Math.abs(S.vx) * 0.4; }
         if (S.x > maxX) { S.x = maxX; S.vx = -Math.abs(S.vx) * 0.4; }
+
+        // Altitude above the resting ground line. Publish it live while truly
+        // airborne so the meter shows only in-flight; track the flight's peak
+        // and grow the day's record as it climbs.
+        const altPx = S.ground - S.y;
+        if (altPx > S.peakPx) S.peakPx = altPx;
+        if (altPx > AIR_MIN_PX) {
+          const m = pxToMeters(altPx);
+          pushLive(who, m);
+          reportAltitude(who, m);
+        } else {
+          pushLive(who, null);
+        }
+
         if (S.y >= S.ground) {
           S.y = S.ground;
           if (S.vy > 500 && !S.reduced) {
@@ -298,8 +324,20 @@ export default function Companion({ who, name, bubble, startFrac, speed, aspect 
           } else if (!S.landed) {
             S.landed = true; S.landedT = now;
             S.vy = 0;
-            speakNow(ouchLine(who).text);    // OUCH! on the frame it lands
-            if (navigator.vibrate) navigator.vibrate(30);
+            pushLive(who, null);             // grounded — hide the meter
+            // New record? Celebrate once, and let the character crow about it
+            // instead of the usual OUCH.
+            const peakM = pxToMeters(S.peakPx);
+            if (!S.celebrated && peakM >= MIN_RECORD_M && peakM > S.recordAtLaunch + 0.05) {
+              S.celebrated = true;
+              reportAltitude(who, peakM);
+              celebrate({ who, meters: peakM });
+              speakNow(recordLine(who, peakM));
+              if (navigator.vibrate) navigator.vibrate([20, 40, 20, 40, 60]);
+            } else {
+              speakNow(ouchLine(who).text);  // OUCH! on the frame it lands
+              if (navigator.vibrate) navigator.vibrate(30);
+            }
           }
         }
         // Recovery: after the standup plays out, return to strolling.
@@ -372,14 +410,22 @@ export default function Companion({ who, name, bubble, startFrac, speed, aspect 
       }
       if (S.dragging) {
         S.dragging = false;
-        // Release velocity from the recent samples → hand off into the fall.
+        // Release velocity from the recent samples → the flick's impulse. The
+        // SAME gesture becomes v = impulse / mass, so the light kangaroo leaves
+        // the hand faster than the heavy penguin and climbs far higher.
         const s = S.samples;
         if (s.length >= 2) {
           const a = s[0], b = s[s.length - 1];
           const dtS = Math.max(0.001, (b.t - a.t) / 1000);
-          S.vx = (b.x - a.x) / dtS;
-          S.vy = (b.y - a.y) / dtS;
+          const f = REF_MASS / mass; // v = impulse / mass: lighter → faster
+          S.vx = ((b.x - a.x) / dtS) * f;
+          S.vy = ((b.y - a.y) / dtS) * f;
         } else { S.vx = 0; S.vy = 0; }
+        // Begin a fresh flight: reset the peak, remember today's record so we
+        // can tell if this launch beats it, and re-arm the celebration.
+        S.peakPx = 0;
+        S.recordAtLaunch = recordFor(who);
+        S.celebrated = false;
         S.landed = false;
         S.fallStart = performance.now();
         setMode('fall');
@@ -414,6 +460,7 @@ export default function Companion({ who, name, bubble, startFrac, speed, aspect 
     return () => {
       S.alive = false;
       delete stage[who];
+      pushLive(who, null);
       cancelAnimationFrame(raf);
       window.removeEventListener('resize', measure);
       window.clearInterval(danceTalk);

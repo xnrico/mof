@@ -314,6 +314,20 @@ export function retortLine(): Line {
 export function hopLine(): Line {
   return { text: unique(kangarooHop), intent: 'hop' };
 }
+/** Crowed on landing when a launch beats today's altitude record. */
+export function recordLine(who: CharacterId, meters: number): string {
+  const h = `${meters.toFixed(1)}m`;
+  if (who === 'kangaroo') return P(
+    `新纪录！${h}！我是史上跳最高的外送袋鼠！🦘🎉`,
+    `${h}!! 小企鹅那对小翅膀这辈子都飞不到这么高！😹`,
+    `WHEEE — ${h}! 今天没有谁比我跳得更高啦！🍎🚀`,
+  );
+  return P(
+    `新纪录！我这个大肚子居然飞到了 ${h}！🐧🎉`,
+    `${h}! 我的小翅膀今天超常发挥，快夸夸我！🪽💗`,
+    `哇，${h} 高！别看腿短，飞起来也是很厉害的！🐧✨`,
+  );
+}
 
 // Composite pickers that blend real data with lore.
 function penguinAdviceLine(): string {
