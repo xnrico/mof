@@ -5,10 +5,17 @@ import axios from 'axios';
 // different host entirely).
 const API_BASE_URL = import.meta.env.VITE_API_URL || `${window.location.origin}/api`;
 
+// Demo mode: when the app is served under /demo, every API call carries the
+// X-MOF-Demo header so the backend routes it to the isolated demo database.
+// Real mode is unaffected (header absent).
+export const IS_DEMO =
+  typeof window !== 'undefined' && window.location.pathname.startsWith('/demo');
+
 const client = axios.create({
   baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
+    ...(IS_DEMO ? { 'X-MOF-Demo': '1' } : {}),
   },
 });
 
@@ -245,6 +252,13 @@ export const api = {
   getKeyPairProviders: async () => {
     const response = await client.get('/key-pairs/providers');
     return response.data;
+  },
+
+  // Demo mode — wipe and reseed the isolated demo database (only reachable
+  // when running under /demo, and guarded server-side by the demo header).
+  resetDemo: async () => {
+    const response = await client.post('/demo/reset');
+    return response.data as { status: string };
   },
 };
 

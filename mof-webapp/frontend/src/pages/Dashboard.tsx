@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
-import { Wallet, TrendingUp, FileDown } from 'lucide-react';
-import { api, formatCurrency, User, Account, CategorySummary } from '../services/api';
+import { Wallet, TrendingUp, FileDown, RotateCcw } from 'lucide-react';
+import { api, formatCurrency, IS_DEMO, User, Account, CategorySummary } from '../services/api';
 import Companion from '../components/Companion';
 import AltitudeMeter from '../components/AltitudeMeter';
 import FlightRecords from '../components/FlightRecords';
@@ -24,7 +24,12 @@ function Card({ children }: { children: ReactNode }) {
 const DAIXU = 'daixu';
 type Tab = number | typeof DAIXU;
 
+// The shared-pool tab is branded "Daixu" for the real family; demo mode uses a
+// neutral "Shared" so no personal branding leaks.
+const SHARED_LABEL = IS_DEMO ? 'Shared' : 'Daixu';
+
 export default function Dashboard() {
+  const queryClient = useQueryClient();
   const [tab, setTab] = useState<Tab | null>(null);
   const [includeShared, setIncludeShared] = useState(true);
   const [displayCurrency, setDisplayCurrency] = useState<'GBP' | 'USD'>('GBP');
@@ -225,6 +230,26 @@ export default function Dashboard() {
     }
   }
 
+  // Demo mode: wipe and reseed the isolated demo database, then refresh every
+  // view. Only ever affects demo data (separate database, guarded server-side).
+  const [resetting, setResetting] = useState(false);
+  async function handleResetDemo() {
+    if (resetting) return;
+    if (!window.confirm('Reset demo data to its original state? This only affects the demo.')) return;
+    setResetting(true);
+    try {
+      await api.resetDemo();
+      setTab(null);
+      setSelectedMonth(null);
+      await queryClient.invalidateQueries();
+    } catch (e) {
+      console.error('Demo reset failed', e);
+      alert('Could not reset the demo data. Please try again.');
+    } finally {
+      setResetting(false);
+    }
+  }
+
   return (
     <div className="px-4 py-6 space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
@@ -239,7 +264,7 @@ export default function Dashboard() {
                   : 'bg-black/[0.05] text-purple-600 hover:bg-black/[0.08]'
               }`}
             >
-              Daixu
+              {SHARED_LABEL}
             </button>
             {users.map((u) => (
               <button
@@ -310,6 +335,19 @@ export default function Dashboard() {
           <FileDown className="h-4 w-4" />
           {downloading ? 'Generating…' : 'Download Report'}
         </button>
+
+        {/* Demo-only: reset the isolated demo dataset back to its seed state. */}
+        {IS_DEMO && (
+          <button
+            onClick={handleResetDemo}
+            disabled={resetting}
+            className="sov-btn inline-flex items-center gap-2 disabled:opacity-60"
+            title="Wipe and reseed the demo data (does not affect real data)"
+          >
+            <RotateCcw className="h-4 w-4" />
+            {resetting ? 'Resetting…' : 'Reset demo data'}
+          </button>
+        )}
       </div>
 
       {/* Shared-account toggle (per-user tabs only; Daixu always includes all) */}
@@ -437,7 +475,7 @@ export default function Dashboard() {
               {!isDaixu && includeShared && (monthSummary?.shared_spending ?? 0) > 0.005 && (
                 <p className="text-xs text-gray-400 mt-0.5">
                   incl. {formatCurrency(monthSummary?.shared_spending ?? 0, displayCurrency)} shared
-                  ({numUsers === 2 ? '½' : `1/${numUsers}`} of Daixu)
+                  ({numUsers === 2 ? '½' : `1/${numUsers}`} of {SHARED_LABEL})
                 </p>
               )}
             </div>

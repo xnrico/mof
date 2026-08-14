@@ -6,8 +6,8 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 
 from config import settings
-from models.database import init_db, get_db
-from api import accounts, transactions, users, sync, settings as settings_api, truelayer, key_pairs, plaid, fx
+from models.database import init_db, get_db, ensure_demo_database, init_demo_db
+from api import accounts, transactions, users, sync, settings as settings_api, truelayer, key_pairs, plaid, fx, demo
 
 
 # Initialize scheduler
@@ -19,6 +19,20 @@ async def lifespan(app: FastAPI):
     """Startup and shutdown events"""
     # Startup
     await init_db()
+
+    # Bootstrap the isolated demo database: create it if missing, create its
+    # tables, and seed fictional data on first run. Kept non-fatal so a demo
+    # setup hiccup never blocks the real app from starting.
+    try:
+        await ensure_demo_database()
+        await init_demo_db()
+        from services.demo_seed import seed_demo
+        from models.database import demo_session_maker
+        async with demo_session_maker() as session:
+            seeded = await seed_demo(session)
+        print("🎭 Demo database ready" + (" (seeded)" if seeded else " (already seeded)"))
+    except Exception as e:
+        print(f"Demo database bootstrap skipped: {e}")
 
     # Prime the FX rate cache so the dashboard has a live rate immediately.
     try:
@@ -78,6 +92,7 @@ app.include_router(truelayer.router, prefix="/api/truelayer", tags=["truelayer"]
 app.include_router(plaid.router, prefix="/api/plaid", tags=["plaid"])
 app.include_router(fx.router, prefix="/api/fx", tags=["fx"])
 app.include_router(key_pairs.router, prefix="/api/key-pairs", tags=["key-pairs"])
+app.include_router(demo.router, prefix="/api/demo", tags=["demo"])
 
 
 @app.get("/")

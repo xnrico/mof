@@ -7,8 +7,14 @@ import Transactions from './pages/Transactions';
 import Settings from './pages/Settings';
 import Manage from './pages/Manage';
 import TrueLayerCallback from './pages/TrueLayerCallback';
+import { IS_DEMO } from './services/api';
 
 const queryClient = new QueryClient();
+
+// When served under /demo, mount the whole app at that basename so every
+// existing route/nav path resolves under /demo (e.g. /demo/accounts) with no
+// per-route changes. Real mode uses '/'.
+const basename = IS_DEMO ? '/demo' : '/';
 
 const navItems = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true },
@@ -21,7 +27,7 @@ const navItems = [
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <Router>
+      <Router basename={basename}>
         <div className="min-h-screen">
           {/* Top bar — translucent material, content scrolls underneath. On
               mobile it carries only the wordmark; navigation moves to the
@@ -35,6 +41,12 @@ function App() {
                   <span className="text-[15px] sm:text-xl font-display font-bold tracking-tight text-ink whitespace-nowrap">
                     Ministry of Finance
                   </span>
+                  {IS_DEMO && (
+                    <span className="ml-2 px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wider
+                                     bg-amber-100 text-amber-700 whitespace-nowrap">
+                      Demo
+                    </span>
+                  )}
                 </div>
 
                 {/* Desktop / tablet inline nav */}
