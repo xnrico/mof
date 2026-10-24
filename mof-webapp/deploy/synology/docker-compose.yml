@@ -1,0 +1,75 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: mof-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?Set POSTGRES_DB in .env}
+      POSTGRES_USER: ${POSTGRES_USER:?Set POSTGRES_USER in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend.Dockerfile
+    container_name: mof-backend
+    restart: unless-stopped
+    env_file:
+      - ./config/backend.env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      GIT_REPOSITORY: ${GIT_REPOSITORY:?Set GIT_REPOSITORY in .env}
+      GIT_BRANCH: ${GIT_BRANCH:-main}
+      GIT_USERNAME: ${GIT_USERNAME:-x-access-token}
+      GIT_PAT_FILE: /run/secrets/github_pat
+      REPO_DIR: /workspace/repository
+    secrets:
+      - github_pat
+    volumes:
+      - ./runtime/backend-repository:/workspace/repository
+      - backend_venv:/venv
+      - backend_pip_cache:/root/.cache/pip
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend.Dockerfile
+    container_name: mof-frontend
+    restart: unless-stopped
+    environment:
+      GIT_REPOSITORY: ${GIT_REPOSITORY:?Set GIT_REPOSITORY in .env}
+      GIT_BRANCH: ${GIT_BRANCH:-main}
+      GIT_USERNAME: ${GIT_USERNAME:-x-access-token}
+      GIT_PAT_FILE: /run/secrets/github_pat
+      REPO_DIR: /workspace/repository
+    secrets:
+      - github_pat
+    volumes:
+      - ./runtime/frontend-repository:/workspace/repository
+      - frontend_npm_cache:/root/.npm
+    ports:
+      - "${FRONTEND_PORT:-3000}:80"
+    depends_on:
+      backend:
+        condition: service_started
+
+secrets:
+  github_pat:
+    file: ./secrets/github_pat.txt
+
+volumes:
+  backend_venv:
+  backend_pip_cache:
+  frontend_npm_cache:

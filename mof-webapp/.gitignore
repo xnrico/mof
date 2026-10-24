@@ -54,6 +54,18 @@ build/
 # Docker
 *.log
 
+# Synology deployment runtime and secrets
+deploy/synology/.env
+deploy/synology/config/backend.env
+deploy/synology/secrets/*
+deploy/synology/backups/*
+deploy/synology/data/*
+deploy/synology/runtime/*
+!deploy/synology/secrets/.gitkeep
+!deploy/synology/backups/.gitkeep
+!deploy/synology/data/.gitkeep
+!deploy/synology/runtime/.gitkeep
+
 # OS
 .DS_Store
 Thumbs.db
